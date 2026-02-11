@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { LayoutDashboard, ShoppingCart, Users, Package, Lightbulb, LogOut } from "lucide-react";
+import { LayoutDashboard, ShoppingCart, Users, Package, Lightbulb, LogOut, Receipt } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 const navItems = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
   { to: "/vendas", label: "Vendas", icon: ShoppingCart },
+  { to: "/despesas", label: "Despesas", icon: Receipt },
   { to: "/clientes", label: "Clientes", icon: Users },
   { to: "/produtos", label: "Produtos", icon: Package },
   { to: "/insights", label: "Insights", icon: Lightbulb },

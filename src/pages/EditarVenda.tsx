@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -6,11 +6,9 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, Trash2, ShoppingCart } from "lucide-react";
+import { Plus, Trash2, Save, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
-import { useNavigate } from "react-router-dom";
-import type { TablesInsert } from "@/integrations/supabase/types";
+import { useNavigate, useParams } from "react-router-dom";
 
 type ItemVenda = {
   produto_id: string;
@@ -26,13 +24,13 @@ const FORMAS_PAGAMENTO = [
   { value: "a_prazo", label: "A prazo" },
 ];
 
-export default function NovaVenda() {
+export default function EditarVenda() {
+  const { id } = useParams<{ id: string }>();
   const [clienteId, setClienteId] = useState("");
   const [itens, setItens] = useState<ItemVenda[]>([]);
   const [descontoGeral, setDescontoGeral] = useState(0);
   const [formaPagamento, setFormaPagamento] = useState("dinheiro");
   const [prazoDias, setPrazoDias] = useState<number | null>(null);
-  const [novoClienteOpen, setNovoClienteOpen] = useState(false);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
@@ -54,19 +52,55 @@ export default function NovaVenda() {
     },
   });
 
-  const novoCliente = useMutation({
-    mutationFn: async (c: TablesInsert<"clientes">) => {
-      const { data, error } = await supabase.from("clientes").insert(c).select().single();
+  const { data: venda, isLoading } = useQuery({
+    queryKey: ["venda", id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("vendas")
+        .select("*, clientes(nome)")
+        .eq("id", id!)
+        .maybeSingle();
       if (error) throw error;
       return data;
     },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["clientes"] });
-      setClienteId(data.id);
-      setNovoClienteOpen(false);
-      toast.success("Cliente cadastrado!");
-    },
+    enabled: !!id,
   });
+
+  const { data: itensExistentes = [] } = useQuery({
+    queryKey: ["itens-venda", id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("itens_venda")
+        .select("*, produtos(nome)")
+        .eq("venda_id", id!);
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!id,
+  });
+
+  useEffect(() => {
+    if (venda) {
+      setClienteId(venda.cliente_id);
+      setDescontoGeral(venda.desconto_geral);
+      setFormaPagamento(venda.forma_pagamento ?? "dinheiro");
+      setPrazoDias(venda.prazo_dias ?? null);
+    }
+  }, [venda]);
+
+  useEffect(() => {
+    if (itensExistentes.length > 0) {
+      setItens(
+        itensExistentes.map((i: any) => ({
+          produto_id: i.produto_id,
+          nome: i.produtos?.nome ?? "Produto removido",
+          quantidade: i.quantidade,
+          preco_unitario: i.preco_unitario,
+          desconto: i.desconto,
+        }))
+      );
+    }
+  }, [itensExistentes]);
 
   const salvarVenda = useMutation({
     mutationFn: async () => {
@@ -74,21 +108,24 @@ export default function NovaVenda() {
       if (itens.length === 0) throw new Error("Adicione ao menos um produto");
 
       const total = totalFinal;
-      const { data: venda, error } = await supabase
+      const { error } = await supabase
         .from("vendas")
-        .insert({
+        .update({
           cliente_id: clienteId,
           desconto_geral: descontoGeral,
           total,
           forma_pagamento: formaPagamento,
           prazo_dias: formaPagamento === "a_prazo" ? prazoDias : null,
         })
-        .select()
-        .single();
+        .eq("id", id!);
       if (error) throw error;
 
+      // Delete existing items and re-insert
+      const { error: delErr } = await supabase.from("itens_venda").delete().eq("venda_id", id!);
+      if (delErr) throw delErr;
+
       const itensInsert = itens.map((i) => ({
-        venda_id: venda.id,
+        venda_id: id!,
         produto_id: i.produto_id,
         quantidade: i.quantidade,
         preco_unitario: i.preco_unitario,
@@ -98,7 +135,9 @@ export default function NovaVenda() {
       if (err2) throw err2;
     },
     onSuccess: () => {
-      toast.success("Venda salva com sucesso!");
+      queryClient.invalidateQueries({ queryKey: ["vendas"] });
+      queryClient.invalidateQueries({ queryKey: ["venda", id] });
+      toast.success("Venda atualizada com sucesso!");
       navigate("/vendas");
     },
     onError: (e) => toast.error(e.message || "Erro ao salvar venda"),
@@ -126,34 +165,28 @@ export default function NovaVenda() {
   const totalFinal = useMemo(() => Math.max(0, subtotal - descontoGeral), [subtotal, descontoGeral]);
   const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
+  if (isLoading) return <p className="p-4 text-sm text-muted-foreground">Carregando...</p>;
+  if (!venda) return <p className="p-4 text-sm text-muted-foreground">Venda não encontrada.</p>;
+
   return (
     <div className="space-y-4">
-      <h1 className="text-xl font-bold">Nova Venda</h1>
+      <div className="flex items-center gap-2">
+        <Button variant="ghost" size="icon" onClick={() => navigate("/vendas")}><ArrowLeft className="h-4 w-4" /></Button>
+        <h1 className="text-xl font-bold">Editar Venda</h1>
+      </div>
 
       {/* Cliente */}
       <Card>
         <CardHeader className="pb-2"><CardTitle className="text-sm">Cliente</CardTitle></CardHeader>
-        <CardContent className="space-y-2">
+        <CardContent>
           <Select value={clienteId} onValueChange={setClienteId}>
             <SelectTrigger><SelectValue placeholder="Selecionar cliente" /></SelectTrigger>
             <SelectContent>
-              {clientes.map((c) => (<SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>))}
+              {clientes.map((c) => (
+                <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
-          <Dialog open={novoClienteOpen} onOpenChange={setNovoClienteOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline" size="sm" className="w-full"><Plus className="mr-1 h-4 w-4" />Novo Cliente</Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader><DialogTitle>Novo Cliente</DialogTitle></DialogHeader>
-              <form onSubmit={(e) => { e.preventDefault(); const fd = new FormData(e.currentTarget); novoCliente.mutate({ nome: fd.get("nome") as string, nicho: (fd.get("nicho") as string) || null, telefone: (fd.get("telefone") as string) || null }); }} className="space-y-3">
-                <div><Label>Nome *</Label><Input name="nome" required /></div>
-                <div><Label>Nicho</Label><Input name="nicho" /></div>
-                <div><Label>Telefone</Label><Input name="telefone" /></div>
-                <Button type="submit" className="w-full" disabled={novoCliente.isPending}>Salvar</Button>
-              </form>
-            </DialogContent>
-          </Dialog>
         </CardContent>
       </Card>
 
@@ -164,13 +197,19 @@ export default function NovaVenda() {
           <Select value={formaPagamento} onValueChange={setFormaPagamento}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
-              {FORMAS_PAGAMENTO.map((f) => (<SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>))}
+              {FORMAS_PAGAMENTO.map((f) => (
+                <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
           {formaPagamento === "a_prazo" && (
             <div className="flex items-center gap-2">
               <Label className="text-xs whitespace-nowrap">Prazo (dias)</Label>
-              <Input type="number" min={1} className="w-24 h-8 text-xs" value={prazoDias ?? ""} onChange={(e) => setPrazoDias(parseInt(e.target.value) || null)} />
+              <Input
+                type="number" min={1} className="w-24 h-8 text-xs"
+                value={prazoDias ?? ""}
+                onChange={(e) => setPrazoDias(parseInt(e.target.value) || null)}
+              />
             </div>
           )}
         </CardContent>
@@ -183,7 +222,9 @@ export default function NovaVenda() {
           <Select onValueChange={addProduto}>
             <SelectTrigger><SelectValue placeholder="Adicionar produto" /></SelectTrigger>
             <SelectContent>
-              {produtos.map((p) => (<SelectItem key={p.id} value={p.id}>{p.nome} — {fmt(p.preco)}</SelectItem>))}
+              {produtos.map((p) => (
+                <SelectItem key={p.id} value={p.id}>{p.nome} — {fmt(p.preco)}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
 
@@ -230,7 +271,7 @@ export default function NovaVenda() {
       </Card>
 
       <Button className="w-full" size="lg" onClick={() => salvarVenda.mutate()} disabled={salvarVenda.isPending}>
-        <ShoppingCart className="mr-2 h-4 w-4" />Salvar Venda
+        <Save className="mr-2 h-4 w-4" />Salvar Alterações
       </Button>
     </div>
   );
