@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,10 +7,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, X } from "lucide-react";
+import { Plus, Search, X, Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { format, startOfDay, endOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { toast } from "sonner";
 
 const FORMAS_LABELS: Record<string, string> = {
   dinheiro: "Dinheiro",
@@ -24,6 +26,22 @@ export default function Vendas() {
   const [filtroForma, setFiltroForma] = useState("todas");
   const [filtroInicio, setFiltroInicio] = useState("");
   const [filtroFim, setFiltroFim] = useState("");
+  const [vendaParaDeletar, setVendaParaDeletar] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+
+  const deletarVenda = useMutation({
+    mutationFn: async (vendaId: string) => {
+      const { error: itensError } = await supabase.from("itens_venda").delete().eq("venda_id", vendaId);
+      if (itensError) throw itensError;
+      const { error } = await supabase.from("vendas").delete().eq("id", vendaId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["vendas"] });
+      toast.success("Venda excluída com sucesso");
+    },
+    onError: () => toast.error("Erro ao excluir venda"),
+  });
 
   const { data: clientes = [] } = useQuery({
     queryKey: ["clientes"],
@@ -127,28 +145,54 @@ export default function Vendas() {
       ) : (
         <div className="grid gap-2">
           {vendas.map((v: any) => (
-            <Link key={v.id} to={`/vendas/${v.id}`}>
-              <Card className="hover:bg-accent/50 transition-colors cursor-pointer">
-                <CardContent className="flex items-center justify-between p-3">
-                  <div className="min-w-0 flex-1">
-                    <p className="font-medium truncate">{v.clientes?.nome ?? "Cliente removido"}</p>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      <p className="text-xs text-muted-foreground">
-                        {format(new Date(v.data), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
-                      </p>
-                      <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-                        {FORMAS_LABELS[v.forma_pagamento] ?? v.forma_pagamento}
-                        {v.forma_pagamento === "a_prazo" && v.prazo_dias ? ` ${v.prazo_dias}d` : ""}
-                      </Badge>
-                    </div>
+            <Card key={v.id} className="hover:bg-accent/50 transition-colors cursor-pointer">
+              <CardContent className="flex items-center justify-between p-3">
+                <Link to={`/vendas/${v.id}`} className="min-w-0 flex-1">
+                  <p className="font-medium truncate">{v.clientes?.nome ?? "Cliente removido"}</p>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <p className="text-xs text-muted-foreground">
+                      {format(new Date(v.data), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                    </p>
+                    <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                      {FORMAS_LABELS[v.forma_pagamento] ?? v.forma_pagamento}
+                      {v.forma_pagamento === "a_prazo" && v.prazo_dias ? ` ${v.prazo_dias}d` : ""}
+                    </Badge>
                   </div>
-                  <span className="text-sm font-bold text-primary shrink-0">{fmt(v.total)}</span>
-                </CardContent>
-              </Card>
-            </Link>
+                </Link>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="text-sm font-bold text-primary">{fmt(v.total)}</span>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                    onClick={(e) => { e.preventDefault(); setVendaParaDeletar(v.id); }}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
           ))}
         </div>
       )}
+
+      <AlertDialog open={!!vendaParaDeletar} onOpenChange={(open) => !open && setVendaParaDeletar(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir venda?</AlertDialogTitle>
+            <AlertDialogDescription>Esta ação não pode ser desfeita. A venda e todos os seus itens serão removidos permanentemente.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => { if (vendaParaDeletar) { deletarVenda.mutate(vendaParaDeletar); setVendaParaDeletar(null); } }}
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
