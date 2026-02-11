@@ -5,21 +5,33 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { format, startOfMonth, startOfDay, endOfDay, differenceInDays } from "date-fns";
-import { Trophy, TrendingDown, AlertTriangle, BarChart3, Users } from "lucide-react";
+import { format, startOfMonth, startOfDay, endOfDay, differenceInDays, eachDayOfInterval } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { Trophy, AlertTriangle, Users, DollarSign, CreditCard } from "lucide-react";
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "@/components/ui/chart";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Cell } from "recharts";
+
+const FORMAS_LABELS: Record<string, string> = {
+  dinheiro: "Dinheiro",
+  a_vista: "À vista",
+  a_prazo: "A prazo",
+};
 
 export default function Insights() {
   const [startDate, setStartDate] = useState(() => format(startOfMonth(new Date()), "yyyy-MM-dd"));
   const [endDate, setEndDate] = useState(() => format(new Date(), "yyyy-MM-dd"));
   const [diasInativo, setDiasInativo] = useState(30);
 
-  // Fetch vendas with items and client info for the period
   const { data: vendas = [] } = useQuery({
     queryKey: ["insights-vendas", startDate, endDate],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("vendas")
-        .select("id, total, data, cliente_id, clientes(nome, nicho)")
+        .select("id, total, data, cliente_id, forma_pagamento, prazo_dias, clientes(nome, nicho)")
         .gte("data", startOfDay(new Date(startDate)).toISOString())
         .lte("data", endOfDay(new Date(endDate)).toISOString());
       if (error) throw error;
@@ -42,7 +54,19 @@ export default function Insights() {
     enabled: vendas.length > 0,
   });
 
-  // All clients for inactivity check
+  const { data: despesas = [] } = useQuery({
+    queryKey: ["insights-despesas", startDate, endDate],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("despesas")
+        .select("*")
+        .gte("data", startOfDay(new Date(startDate)).toISOString())
+        .lte("data", endOfDay(new Date(endDate)).toISOString());
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
   const { data: allClientes = [] } = useQuery({
     queryKey: ["insights-all-clientes"],
     queryFn: async () => {
@@ -61,7 +85,49 @@ export default function Insights() {
     },
   });
 
-  // Ranking de produtos mais vendidos
+  // Entradas x Despesas por dia
+  const entradasDespesasData = useMemo(() => {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    const days = eachDayOfInterval({ start, end });
+    const mapEntradas = new Map<string, number>();
+    const mapDespesas = new Map<string, number>();
+    days.forEach((d) => {
+      const key = format(d, "yyyy-MM-dd");
+      mapEntradas.set(key, 0);
+      mapDespesas.set(key, 0);
+    });
+    vendas.forEach((v: any) => {
+      const key = format(new Date(v.data), "yyyy-MM-dd");
+      mapEntradas.set(key, (mapEntradas.get(key) ?? 0) + v.total);
+    });
+    despesas.forEach((d: any) => {
+      const key = format(new Date(d.data), "yyyy-MM-dd");
+      mapDespesas.set(key, (mapDespesas.get(key) ?? 0) + d.valor);
+    });
+    return days.map((d) => {
+      const key = format(d, "yyyy-MM-dd");
+      return {
+        date: format(d, "dd/MM", { locale: ptBR }),
+        entradas: mapEntradas.get(key) ?? 0,
+        despesas: mapDespesas.get(key) ?? 0,
+      };
+    });
+  }, [vendas, despesas, startDate, endDate]);
+
+  // Vendas por forma de pagamento
+  const vendasPorForma = useMemo(() => {
+    const map = new Map<string, number>();
+    vendas.forEach((v: any) => {
+      const forma = v.forma_pagamento ?? "dinheiro";
+      map.set(forma, (map.get(forma) ?? 0) + v.total);
+    });
+    return Array.from(map.entries())
+      .map(([forma, total]) => ({ forma, label: FORMAS_LABELS[forma] ?? forma, total }))
+      .sort((a, b) => b.total - a.total);
+  }, [vendas]);
+
+  // Ranking de produtos
   const rankingProdutos = useMemo(() => {
     const map = new Map<string, { nome: string; qtd: number; receita: number }>();
     itensVenda.forEach((item: any) => {
@@ -74,7 +140,6 @@ export default function Insights() {
     return Array.from(map.values()).sort((a, b) => b.qtd - a.qtd);
   }, [itensVenda]);
 
-  // Top clientes
   const topClientes = useMemo(() => {
     const map = new Map<string, { nome: string; total: number; qtd: number }>();
     vendas.forEach((v: any) => {
@@ -89,14 +154,11 @@ export default function Insights() {
       .sort((a, b) => b.total - a.total);
   }, [vendas]);
 
-  // Clientes inativos
   const clientesInativos = useMemo(() => {
     const now = new Date();
     const lastPurchase = new Map<string, Date>();
     allVendas.forEach((v) => {
-      if (!lastPurchase.has(v.cliente_id)) {
-        lastPurchase.set(v.cliente_id, new Date(v.data));
-      }
+      if (!lastPurchase.has(v.cliente_id)) lastPurchase.set(v.cliente_id, new Date(v.data));
     });
     return allClientes
       .map((c) => {
@@ -109,6 +171,16 @@ export default function Insights() {
   }, [allClientes, allVendas, diasInativo]);
 
   const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+  const chartConfigED = {
+    entradas: { label: "Entradas (R$)", color: "hsl(var(--primary))" },
+    despesas: { label: "Despesas (R$)", color: "hsl(var(--destructive))" },
+  };
+
+  const FORMA_COLORS = ["hsl(var(--primary))", "hsl(var(--chart-2))", "hsl(var(--chart-3))"];
+  const chartConfigForma = {
+    total: { label: "Total (R$)", color: "hsl(var(--primary))" },
+  };
 
   return (
     <div className="space-y-4">
@@ -130,6 +202,71 @@ export default function Insights() {
         </div>
       </div>
 
+      {/* Entradas x Despesas */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center gap-2 text-sm font-medium">
+            <DollarSign className="h-4 w-4 text-primary" />
+            Entradas x Despesas
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {entradasDespesasData.length > 0 ? (
+            <ChartContainer config={chartConfigED} className="h-[220px] w-full">
+              <BarChart data={entradasDespesasData}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-border/50" />
+                <XAxis dataKey="date" fontSize={10} tickLine={false} axisLine={false} />
+                <YAxis fontSize={10} tickLine={false} axisLine={false} tickFormatter={(v) => `R$${v}`} />
+                <ChartTooltip content={<ChartTooltipContent />} />
+                <Bar dataKey="entradas" fill="var(--color-entradas)" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="despesas" fill="var(--color-despesas)" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ChartContainer>
+          ) : (
+            <p className="py-6 text-center text-sm text-muted-foreground">Sem dados no período.</p>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Vendas por Forma de Pagamento */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center gap-2 text-sm font-medium">
+            <CreditCard className="h-4 w-4 text-primary" />
+            Vendas por Forma de Pagamento
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {vendasPorForma.length === 0 ? (
+            <p className="py-6 text-center text-sm text-muted-foreground">Sem vendas no período.</p>
+          ) : (
+            <>
+              <ChartContainer config={chartConfigForma} className="h-[180px] w-full">
+                <BarChart data={vendasPorForma} layout="vertical">
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-border/50" />
+                  <XAxis type="number" fontSize={10} tickLine={false} axisLine={false} tickFormatter={(v) => `R$${v}`} />
+                  <YAxis type="category" dataKey="label" fontSize={11} tickLine={false} axisLine={false} width={80} />
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <Bar dataKey="total" radius={[0, 4, 4, 0]}>
+                    {vendasPorForma.map((_, idx) => (
+                      <Cell key={idx} fill={FORMA_COLORS[idx % FORMA_COLORS.length]} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ChartContainer>
+              <div className="mt-2 space-y-1">
+                {vendasPorForma.map((f, i) => (
+                  <div key={f.forma} className="flex items-center justify-between text-sm">
+                    <span className={i === 0 ? "font-bold" : ""}>{f.label}</span>
+                    <span className={i === 0 ? "font-bold text-primary" : "text-muted-foreground"}>{fmt(f.total)}</span>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Ranking de Produtos */}
       <Card>
         <CardHeader className="pb-2">
@@ -146,9 +283,7 @@ export default function Insights() {
               {rankingProdutos.slice(0, 10).map((p, i) => (
                 <div key={i} className="flex items-center justify-between rounded-md border border-border p-2">
                   <div className="flex items-center gap-2">
-                    <Badge variant={i < 3 ? "default" : "secondary"} className="w-6 justify-center text-xs">
-                      {i + 1}
-                    </Badge>
+                    <Badge variant={i < 3 ? "default" : "secondary"} className="w-6 justify-center text-xs">{i + 1}</Badge>
                     <span className="text-sm font-medium">{p.nome}</span>
                   </div>
                   <div className="text-right">
@@ -162,7 +297,7 @@ export default function Insights() {
         </CardContent>
       </Card>
 
-      {/* Top Clientes + Ticket Médio */}
+      {/* Top Clientes */}
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2 text-sm font-medium">
@@ -178,9 +313,7 @@ export default function Insights() {
               {topClientes.slice(0, 10).map((c, i) => (
                 <div key={i} className="flex items-center justify-between rounded-md border border-border p-2">
                   <div className="flex items-center gap-2">
-                    <Badge variant={i < 3 ? "default" : "secondary"} className="w-6 justify-center text-xs">
-                      {i + 1}
-                    </Badge>
+                    <Badge variant={i < 3 ? "default" : "secondary"} className="w-6 justify-center text-xs">{i + 1}</Badge>
                     <div>
                       <p className="text-sm font-medium">{c.nome}</p>
                       <p className="text-xs text-muted-foreground">{c.qtd} vendas · Ticket: {fmt(c.ticketMedio)}</p>

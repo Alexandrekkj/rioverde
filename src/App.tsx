@@ -10,6 +10,8 @@ import Clientes from "./pages/Clientes";
 import Produtos from "./pages/Produtos";
 import Vendas from "./pages/Vendas";
 import NovaVenda from "./pages/NovaVenda";
+import EditarVenda from "./pages/EditarVenda";
+import Despesas from "./pages/Despesas";
 import Insights from "./pages/Insights";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
@@ -29,6 +31,8 @@ const App = () => (
           <Route path="/produtos" element={<ProtectedRoute><AppLayout><Produtos /></AppLayout></ProtectedRoute>} />
           <Route path="/vendas" element={<ProtectedRoute><AppLayout><Vendas /></AppLayout></ProtectedRoute>} />
           <Route path="/vendas/nova" element={<ProtectedRoute><AppLayout><NovaVenda /></AppLayout></ProtectedRoute>} />
+          <Route path="/vendas/:id" element={<ProtectedRoute><AppLayout><EditarVenda /></AppLayout></ProtectedRoute>} />
+          <Route path="/despesas" element={<ProtectedRoute><AppLayout><Despesas /></AppLayout></ProtectedRoute>} />
           <Route path="/insights" element={<ProtectedRoute><AppLayout><Insights /></AppLayout></ProtectedRoute>} />
           <Route path="*" element={<NotFound />} />
         </Routes>

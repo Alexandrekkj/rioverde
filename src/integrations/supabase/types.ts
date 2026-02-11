@@ -47,6 +47,33 @@ export type Database = {
         }
         Relationships: []
       }
+      despesas: {
+        Row: {
+          created_at: string
+          data: string
+          id: string
+          observacoes: string | null
+          tipo: string
+          valor: number
+        }
+        Insert: {
+          created_at?: string
+          data?: string
+          id?: string
+          observacoes?: string | null
+          tipo: string
+          valor?: number
+        }
+        Update: {
+          created_at?: string
+          data?: string
+          id?: string
+          observacoes?: string | null
+          tipo?: string
+          valor?: number
+        }
+        Relationships: []
+      }
       itens_venda: {
         Row: {
           created_at: string
@@ -122,7 +149,9 @@ export type Database = {
           created_at: string
           data: string
           desconto_geral: number
+          forma_pagamento: string
           id: string
+          prazo_dias: number | null
           total: number
         }
         Insert: {
@@ -130,7 +159,9 @@ export type Database = {
           created_at?: string
           data?: string
           desconto_geral?: number
+          forma_pagamento?: string
           id?: string
+          prazo_dias?: number | null
           total?: number
         }
         Update: {
@@ -138,7 +169,9 @@ export type Database = {
           created_at?: string
           data?: string
           desconto_geral?: number
+          forma_pagamento?: string
           id?: string
+          prazo_dias?: number | null
           total?: number
         }
         Relationships: [
