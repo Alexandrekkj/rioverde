@@ -1,6 +1,8 @@
-import { Link, useLocation } from "react-router-dom";
-import { LayoutDashboard, ShoppingCart, Users, Package, Lightbulb } from "lucide-react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { LayoutDashboard, ShoppingCart, Users, Package, Lightbulb, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
 
 const navItems = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -12,7 +14,11 @@ const navItems = [
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { pathname } = useLocation();
-
+  const navigate = useNavigate();
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    navigate("/login");
+  };
   return (
     <div className="flex min-h-screen flex-col md:flex-row">
       {/* Desktop sidebar */}
@@ -37,6 +43,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </Link>
           ))}
         </nav>
+        <div className="p-2">
+          <Button variant="ghost" size="sm" className="w-full justify-start gap-3 text-muted-foreground" onClick={handleLogout}>
+            <LogOut className="h-4 w-4" />Sair
+          </Button>
+        </div>
       </aside>
 
       {/* Main content */}
