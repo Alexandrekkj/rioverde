@@ -28,6 +28,7 @@ import {
   RefreshCw,
   Target,
   BarChart3,
+  Scissors,
 } from "lucide-react";
 import {
   ChartContainer,
@@ -42,7 +43,6 @@ import {
   CartesianGrid,
   LineChart,
   Line,
-  ResponsiveContainer,
 } from "recharts";
 import { toast } from "sonner";
 
@@ -57,6 +57,7 @@ function KpiCard({
   icon: Icon,
   highlight,
   trend,
+  warn,
 }: {
   label: string;
   value: string;
@@ -64,19 +65,20 @@ function KpiCard({
   icon: React.ElementType;
   highlight?: boolean;
   trend?: "up" | "down" | "neutral";
+  warn?: boolean;
 }) {
   return (
-    <Card className={highlight ? "border-primary/50 bg-primary/5" : ""}>
+    <Card className={warn ? "border-orange-400/50 bg-orange-50/50 dark:bg-orange-950/20" : highlight ? "border-primary/50 bg-primary/5" : ""}>
       <CardContent className="flex flex-col gap-1 p-4">
         <div className="flex items-center justify-between">
-          <Icon className={`h-4 w-4 ${highlight ? "text-primary" : "text-muted-foreground"}`} />
+          <Icon className={`h-4 w-4 ${warn ? "text-orange-500" : highlight ? "text-primary" : "text-muted-foreground"}`} />
           {trend && (
             <span className={trend === "up" ? "text-green-600" : trend === "down" ? "text-destructive" : "text-muted-foreground"}>
               {trend === "up" ? <TrendingUp className="h-3 w-3" /> : trend === "down" ? <TrendingDown className="h-3 w-3" /> : null}
             </span>
           )}
         </div>
-        <span className={`text-lg font-bold ${highlight ? "text-primary" : ""}`}>{value}</span>
+        <span className={`text-lg font-bold ${warn ? "text-orange-600" : highlight ? "text-primary" : ""}`}>{value}</span>
         <span className="text-xs text-muted-foreground">{label}</span>
         {sub && <span className="text-xs text-muted-foreground/70">{sub}</span>}
       </CardContent>
@@ -154,7 +156,7 @@ function useVendasPeriodo(inicio: Date, fim: Date, queryKey: string) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("vendas")
-        .select("id, total, data, cliente_id, clientes(nome)")
+        .select("id, total, data, cliente_id, desconto_geral, clientes(nome)")
         .gte("data", startOfDay(inicio).toISOString())
         .lte("data", endOfDay(fim).toISOString());
       if (error) throw error;
@@ -170,7 +172,7 @@ function useItensVenda(vendaIds: string[], enabled: boolean, queryKey: string) {
       if (vendaIds.length === 0) return [];
       const { data, error } = await supabase
         .from("itens_venda")
-        .select("produto_id, quantidade, preco_unitario, venda_id, produtos(nome, preco_custo)")
+        .select("produto_id, quantidade, preco_unitario, desconto, venda_id, produtos(nome, preco_custo, preco)")
         .in("venda_id", vendaIds);
       if (error) throw error;
       return data ?? [];
@@ -194,22 +196,82 @@ function useDespesasPeriodo(inicio: Date, fim: Date, queryKey: string) {
   });
 }
 
-// ─── Cálculos financeiros ────────────────────────────────────────────────────
+// ─── Cálculos financeiros ─────────────────────────────────────────────────────
+//
+// Lógica de desconto:
+//   • O desconto NUNCA abate o custo. Ele reduz a RECEITA real da venda.
+//   • Receita real por item  = preco_unitario × qtd − desconto_item
+//   • Desconto geral da venda é abatido do total já registrado (campo `total` já tem desconto_geral aplicado pela tela de venda)
+//   • Receita sem desconto (teórica) = preco de tabela × qtd (usando produtos.preco)
+//   • Desconto total = receita teórica − receita real
+//   • Lucro bruto real = receita real − custo de reposição
+//   • Margem teórica = (receita teórica − custo) / receita teórica
+//   • Margem real = lucro bruto real / receita real
+//   • Impacto desconto = desconto total / lucro bruto teórico
 
 function calcFinanceiro(vendas: any[], itens: any[], despesas: any[]) {
+  // Receita real = soma dos totais já gravados no banco (após desconto_geral)
   const receita = vendas.reduce((s, v) => s + (v.total ?? 0), 0);
+
+  // Custo de reposição (não é afetado por desconto)
   const custo = itens.reduce((s, i) => {
     const c = (i.produtos as any)?.preco_custo ?? 0;
     return s + c * (i.quantidade ?? 1);
   }, 0);
+
+  // Receita teórica (preço de tabela, sem nenhum desconto)
+  const receitaTeorica = itens.reduce((s, i) => {
+    const precoTabela = (i.produtos as any)?.preco ?? i.preco_unitario ?? 0;
+    return s + precoTabela * (i.quantidade ?? 1);
+  }, 0);
+
+  // Descontos por item (campo desconto nos itens_venda)
+  const descontoItens = itens.reduce((s, i) => s + (i.desconto ?? 0) * (i.quantidade ?? 1), 0);
+
+  // Desconto geral das vendas
+  const descontoGeral = vendas.reduce((s, v) => s + (v.desconto_geral ?? 0), 0);
+
+  // Desconto total = diferença entre receita teórica e receita real (mais robusto)
+  const descontoTotal = Math.max(0, receitaTeorica - receita);
+
+  // Lucro bruto real (receita após descontos − custo)
   const lucroBruto = receita - custo;
+
+  // Lucro bruto teórico (sem desconto)
+  const lucroBrutoTeorico = receitaTeorica - custo;
+
   const totalDespesas = despesas.reduce((s, d) => s + (d.valor ?? 0), 0);
   const lucroLiquido = lucroBruto - totalDespesas;
+
+  // Margens
   const margemBruta = receita > 0 ? (lucroBruto / receita) * 100 : 0;
   const margemLiquida = receita > 0 ? (lucroLiquido / receita) * 100 : 0;
+  const margemTeorica = receitaTeorica > 0 ? (lucroBrutoTeorico / receitaTeorica) * 100 : 0;
+
+  // Impacto % dos descontos sobre o lucro bruto teórico
+  const impactoDesconto = lucroBrutoTeorico > 0 ? (descontoTotal / lucroBrutoTeorico) * 100 : 0;
+
   const qtdVendas = vendas.length;
   const ticketMedio = qtdVendas > 0 ? receita / qtdVendas : 0;
-  return { receita, custo, lucroBruto, totalDespesas, lucroLiquido, margemBruta, margemLiquida, qtdVendas, ticketMedio };
+
+  return {
+    receita,
+    custo,
+    lucroBruto,
+    lucroBrutoTeorico,
+    totalDespesas,
+    lucroLiquido,
+    margemBruta,
+    margemLiquida,
+    margemTeorica,
+    qtdVendas,
+    ticketMedio,
+    descontoTotal,
+    descontoItens,
+    descontoGeral,
+    receitaTeorica,
+    impactoDesconto,
+  };
 }
 
 function gerarAlertas(fin: ReturnType<typeof calcFinanceiro>): string[] {
@@ -218,7 +280,52 @@ function gerarAlertas(fin: ReturnType<typeof calcFinanceiro>): string[] {
   if (fin.margemBruta < 15 && fin.receita > 0) alertas.push("Margem bruta abaixo de 15%");
   if (fin.totalDespesas > fin.lucroBruto && fin.lucroBruto > 0) alertas.push("Despesas superam o lucro bruto");
   if (fin.lucroLiquido < 0) alertas.push("Operação com prejuízo líquido");
+  if (fin.impactoDesconto > 20) alertas.push(`Descontos consomem ${fin.impactoDesconto.toFixed(0)}% do lucro bruto`);
   return alertas;
+}
+
+// ─── Card de análise de descontos ────────────────────────────────────────────
+
+function CardDescontos({ fin }: { fin: ReturnType<typeof calcFinanceiro> }) {
+  if (fin.descontoTotal <= 0) return null;
+
+  const difMargem = fin.margemTeorica - fin.margemBruta;
+
+  return (
+    <Card className="border-orange-400/40 bg-orange-50/40 dark:bg-orange-950/20">
+      <CardHeader className="pb-2">
+        <CardTitle className="flex items-center gap-2 text-sm font-medium text-orange-700 dark:text-orange-400">
+          <Scissors className="h-4 w-4" />
+          Impacto dos Descontos
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div>
+            <p className="text-xs text-muted-foreground">Descontos concedidos</p>
+            <p className="text-base font-bold text-orange-600">{fmt(fin.descontoTotal)}</p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Margem teórica (s/ desc.)</p>
+            <p className="text-base font-bold">{fin.margemTeorica.toFixed(1)}%</p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Margem real (c/ desc.)</p>
+            <p className="text-base font-bold text-orange-600">{fin.margemBruta.toFixed(1)}%</p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Impacto s/ lucro bruto</p>
+            <p className="text-base font-bold text-destructive">-{fin.impactoDesconto.toFixed(1)}%</p>
+          </div>
+        </div>
+        {difMargem > 0 && (
+          <p className="text-xs text-orange-600 mt-3">
+            ⚠️ Os descontos reduziram a margem bruta em <strong>{difMargem.toFixed(1)} p.p.</strong> — de {fin.margemTeorica.toFixed(1)}% para {fin.margemBruta.toFixed(1)}%.
+          </p>
+        )}
+      </CardContent>
+    </Card>
+  );
 }
 
 // ─── Painel Diário ───────────────────────────────────────────────────────────
@@ -259,6 +366,9 @@ function PainelDiario() {
     lucroLiquido: fin.lucroLiquido,
     margemBruta: fin.margemBruta,
     margemLiquida: fin.margemLiquida,
+    margemTeorica: fin.margemTeorica,
+    descontoTotal: fin.descontoTotal,
+    impactoDesconto: fin.impactoDesconto,
     qtdVendas: fin.qtdVendas,
     ticketMedio: fin.ticketMedio,
     mediaLucro7dias: media7,
@@ -267,13 +377,13 @@ function PainelDiario() {
 
   const chartConfig = {
     receita: { label: "Receita", color: "hsl(var(--primary))" },
-    custo: { label: "Custo", color: "hsl(var(--muted-foreground))" },
     lucro: { label: "Lucro Líquido", color: "hsl(142 60% 45%)" },
   };
 
   const barData = [
     { name: "Receita", valor: fin.receita, fill: "hsl(var(--primary))" },
     { name: "Custo Rep.", valor: fin.custo, fill: "hsl(var(--muted-foreground))" },
+    { name: "Descontos", valor: fin.descontoTotal, fill: "hsl(30 80% 55%)" },
     { name: "Despesas", valor: fin.totalDespesas, fill: "hsl(var(--destructive))" },
     { name: "Lucro Liq.", valor: Math.max(0, fin.lucroLiquido), fill: "hsl(142 60% 45%)" },
   ];
@@ -294,11 +404,30 @@ function PainelDiario() {
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         <KpiCard label="Receita Hoje" value={fmt(fin.receita)} icon={DollarSign} />
         <KpiCard label="Custo Reposição" value={fmt(fin.custo)} icon={ShoppingCart} />
-        <KpiCard label="Lucro Bruto" value={fmt(fin.lucroBruto)} icon={TrendingUp} highlight={fin.lucroBruto > 0} />
+        <KpiCard label="Lucro Bruto Real" value={fmt(fin.lucroBruto)} icon={TrendingUp} highlight={fin.lucroBruto > 0} />
+        <KpiCard label="Descontos Concedidos" value={fmt(fin.descontoTotal)} icon={Scissors} warn={fin.descontoTotal > 0} sub={fin.descontoTotal > 0 ? `-${fin.impactoDesconto.toFixed(1)}% lucro bruto` : undefined} />
         <KpiCard label="Despesas" value={fmt(fin.totalDespesas)} icon={TrendingDown} />
         <KpiCard label="Lucro Líquido" value={fmt(fin.lucroLiquido)} icon={Target} highlight={fin.lucroLiquido > 0} trend={fin.lucroLiquido >= 0 ? "up" : "down"} />
-        <KpiCard label="Margem Líquida" value={`${fin.margemLiquida.toFixed(1)}%`} icon={BarChart3} sub={`Bruta: ${fin.margemBruta.toFixed(1)}%`} />
       </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground mb-1">Margem bruta teórica</p>
+            <p className="text-lg font-bold">{fin.margemTeorica.toFixed(1)}%</p>
+            <p className="text-xs text-muted-foreground">sem desconto</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground mb-1">Margem bruta real</p>
+            <p className={`text-lg font-bold ${fin.descontoTotal > 0 ? "text-orange-600" : "text-primary"}`}>{fin.margemBruta.toFixed(1)}%</p>
+            <p className="text-xs text-muted-foreground">com desconto</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <CardDescontos fin={fin} />
 
       <div className="grid gap-4 md:grid-cols-2">
         <Card>
@@ -310,11 +439,11 @@ function PainelDiario() {
                 <XAxis dataKey="name" fontSize={10} tickLine={false} axisLine={false} />
                 <YAxis fontSize={10} tickLine={false} axisLine={false} tickFormatter={(v) => `R$${v}`} />
                 <ChartTooltip content={<ChartTooltipContent />} />
-                <Bar dataKey="valor" radius={[4, 4, 0, 0]}>
-                  {barData.map((entry, i) => (
-                    <rect key={i} fill={entry.fill} />
-                  ))}
-                </Bar>
+                <Bar dataKey="valor" radius={[4, 4, 0, 0]}
+                  fill="hsl(var(--primary))"
+                  // @ts-ignore - individual fill per entry
+                  cells={barData.map((entry) => ({ fill: entry.fill }))}
+                />
               </BarChart>
             </ChartContainer>
           </CardContent>
@@ -323,7 +452,7 @@ function PainelDiario() {
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Lucro — Últimos 7 dias</CardTitle></CardHeader>
           <CardContent>
-            <ChartContainer config={{ lucro: { label: "Lucro Líq.", color: "hsl(142 60% 45%)" }, receita: { label: "Receita", color: "hsl(var(--primary))" } }} className="h-[200px]">
+            <ChartContainer config={chartConfig} className="h-[200px]">
               <LineChart data={evolucao7d}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border/40" />
                 <XAxis dataKey="date" fontSize={10} tickLine={false} axisLine={false} />
@@ -365,7 +494,7 @@ function PainelSemanal() {
       const iDia = itens.filter((i: any) => vDia.some((v: any) => v.id === i.venda_id));
       const dDia = despesas.filter((d2: any) => format(new Date(d2.data), "yyyy-MM-dd") === key);
       const f = calcFinanceiro(vDia, iDia, dDia);
-      return { date: format(d, "EEE", { locale: ptBR }), receita: f.receita, lucro: f.lucroLiquido };
+      return { date: format(d, "EEE", { locale: ptBR }), receita: f.receita, lucro: f.lucroLiquido, desconto: f.descontoTotal };
     });
   }, [vendas, itens, despesas]);
 
@@ -374,10 +503,11 @@ function PainelSemanal() {
     itens.forEach((i: any) => {
       const nome = i.produtos?.nome ?? "Desc.";
       const custo = (i.produtos?.preco_custo ?? 0) * (i.quantidade ?? 1);
-      const receita = i.preco_unitario * (i.quantidade ?? 1);
+      // Receita real por item: preco_unitario menos desconto por unidade
+      const receitaItem = (i.preco_unitario - (i.desconto ?? 0)) * (i.quantidade ?? 1);
       const existing = map.get(i.produto_id) ?? { nome, qtd: 0, lucro: 0 };
       existing.qtd += i.quantidade ?? 1;
-      existing.lucro += receita - custo;
+      existing.lucro += receitaItem - custo;
       map.set(i.produto_id, existing);
     });
     return Array.from(map.values()).sort((a, b) => b.lucro - a.lucro).slice(0, 5);
@@ -397,6 +527,9 @@ function PainelSemanal() {
     lucroLiquido: fin.lucroLiquido,
     margemBruta: fin.margemBruta,
     margemLiquida: fin.margemLiquida,
+    margemTeorica: fin.margemTeorica,
+    descontoTotal: fin.descontoTotal,
+    impactoDesconto: fin.impactoDesconto,
     qtdVendas: fin.qtdVendas,
     ticketMedio: fin.ticketMedio,
     alertas,
@@ -417,18 +550,35 @@ function PainelSemanal() {
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         <KpiCard label="Receita Semanal" value={fmt(fin.receita)} icon={DollarSign} />
-        <KpiCard label="Lucro Bruto" value={fmt(fin.lucroBruto)} icon={TrendingUp} highlight />
+        <KpiCard label="Lucro Bruto Real" value={fmt(fin.lucroBruto)} icon={TrendingUp} highlight />
         <KpiCard label="Lucro Líquido" value={fmt(fin.lucroLiquido)} icon={Target} highlight={fin.lucroLiquido > 0} trend={fin.lucroLiquido >= 0 ? "up" : "down"} />
+        <KpiCard label="Descontos Concedidos" value={fmt(fin.descontoTotal)} icon={Scissors} warn={fin.descontoTotal > 0} sub={fin.descontoTotal > 0 ? `-${fin.impactoDesconto.toFixed(1)}% lucro bruto` : undefined} />
         <KpiCard label="Despesas" value={fmt(fin.totalDespesas)} icon={TrendingDown} />
-        <KpiCard label="Média Diária" value={fmt(mediaDiariaLucro)} icon={BarChart3} sub="lucro/dia" />
-        <KpiCard label="Ticket Médio" value={fmt(fin.ticketMedio)} icon={ShoppingCart} sub={`${fin.qtdVendas} vendas`} />
+        <KpiCard label="Média Diária Lucro" value={fmt(mediaDiariaLucro)} icon={BarChart3} sub={`${fin.qtdVendas} vendas`} />
       </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground mb-1">Margem teórica (s/ desc.)</p>
+            <p className="text-lg font-bold">{fin.margemTeorica.toFixed(1)}%</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground mb-1">Margem real (c/ desc.)</p>
+            <p className={`text-lg font-bold ${fin.descontoTotal > 0 ? "text-orange-600" : "text-primary"}`}>{fin.margemBruta.toFixed(1)}%</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <CardDescontos fin={fin} />
 
       <div className="grid gap-4 md:grid-cols-2">
         <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Receita por Dia da Semana</CardTitle></CardHeader>
+          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Receita x Lucro por Dia</CardTitle></CardHeader>
           <CardContent>
-            <ChartContainer config={{ receita: { label: "Receita", color: "hsl(var(--primary))" }, lucro: { label: "Lucro Líq.", color: "hsl(142 60% 45%)" } }} className="h-[200px]">
+            <ChartContainer config={{ receita: { label: "Receita", color: "hsl(var(--primary))" }, lucro: { label: "Lucro Líq.", color: "hsl(142 60% 45%)" }, desconto: { label: "Desconto", color: "hsl(30 80% 55%)" } }} className="h-[200px]">
               <BarChart data={evolucaoDiaria}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border/40" />
                 <XAxis dataKey="date" fontSize={10} tickLine={false} axisLine={false} />
@@ -436,13 +586,14 @@ function PainelSemanal() {
                 <ChartTooltip content={<ChartTooltipContent />} />
                 <Bar dataKey="receita" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
                 <Bar dataKey="lucro" fill="hsl(142 60% 45%)" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="desconto" fill="hsl(30 80% 55%)" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ChartContainer>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Produtos Mais Lucrativos</CardTitle></CardHeader>
+          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Produtos Mais Lucrativos (real)</CardTitle></CardHeader>
           <CardContent>
             {rankingProdutos.length === 0 ? (
               <p className="text-sm text-muted-foreground py-4 text-center">Sem dados</p>
@@ -525,7 +676,7 @@ function PainelMensal() {
       const iDia = itens.filter((i: any) => vDia.some((v: any) => v.id === i.venda_id));
       const dDia = despesas.filter((d2: any) => format(new Date(d2.data), "yyyy-MM-dd") === key);
       const f = calcFinanceiro(vDia, iDia, dDia);
-      return { date: format(d, "dd", { locale: ptBR }), receita: f.receita, lucro: f.lucroLiquido };
+      return { date: format(d, "dd", { locale: ptBR }), receita: f.receita, lucro: f.lucroLiquido, desconto: f.descontoTotal };
     });
   }, [vendas, itens, despesas]);
 
@@ -535,6 +686,7 @@ function PainelMensal() {
       const nome = v.clientes?.nome ?? "Desc.";
       const itensVenda = itens.filter((i: any) => i.venda_id === v.id);
       const custo = itensVenda.reduce((s: number, i: any) => s + (i.produtos?.preco_custo ?? 0) * (i.quantidade ?? 1), 0);
+      // Usa total já com desconto_geral aplicado
       const existing = map.get(v.cliente_id) ?? { nome, total: 0, lucro: 0 };
       existing.total += v.total;
       existing.lucro += v.total - custo;
@@ -551,6 +703,9 @@ function PainelMensal() {
     lucroLiquido: fin.lucroLiquido,
     margemBruta: fin.margemBruta,
     margemLiquida: fin.margemLiquida,
+    margemTeorica: fin.margemTeorica,
+    descontoTotal: fin.descontoTotal,
+    impactoDesconto: fin.impactoDesconto,
     qtdVendas: fin.qtdVendas,
     ticketMedio: fin.ticketMedio,
     crescimento: crescimentoLucro,
@@ -585,11 +740,37 @@ function PainelMensal() {
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         <KpiCard label="Receita do Mês" value={fmt(fin.receita)} icon={DollarSign} sub={`Mês ant: ${fmt(finAnt.receita)}`} />
         <KpiCard label="Custo Reposição" value={fmt(fin.custo)} icon={ShoppingCart} />
-        <KpiCard label="Lucro Bruto" value={fmt(fin.lucroBruto)} icon={TrendingUp} highlight />
+        <KpiCard label="Lucro Bruto Real" value={fmt(fin.lucroBruto)} icon={TrendingUp} highlight />
+        <KpiCard label="Descontos Concedidos" value={fmt(fin.descontoTotal)} icon={Scissors} warn={fin.descontoTotal > 0} sub={fin.descontoTotal > 0 ? `-${fin.impactoDesconto.toFixed(1)}% lucro bruto` : undefined} />
         <KpiCard label="Despesas" value={fmt(fin.totalDespesas)} icon={TrendingDown} />
         <KpiCard label="Lucro Líquido" value={fmt(fin.lucroLiquido)} icon={Target} highlight={fin.lucroLiquido > 0} trend={crescimentoLucro >= 0 ? "up" : "down"} sub={finAnt.lucroLiquido !== 0 ? pct(crescimentoLucro) + " vs mês ant." : ""} />
-        <KpiCard label="Margem Líquida" value={`${fin.margemLiquida.toFixed(1)}%`} icon={BarChart3} sub={`Bruta: ${fin.margemBruta.toFixed(1)}%`} />
       </div>
+
+      <div className="grid grid-cols-3 gap-3">
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground mb-1">Margem teórica</p>
+            <p className="text-lg font-bold">{fin.margemTeorica.toFixed(1)}%</p>
+            <p className="text-xs text-muted-foreground">sem desconto</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground mb-1">Margem real</p>
+            <p className={`text-lg font-bold ${fin.descontoTotal > 0 ? "text-orange-600" : "text-primary"}`}>{fin.margemBruta.toFixed(1)}%</p>
+            <p className="text-xs text-muted-foreground">com desconto</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground mb-1">Margem líquida</p>
+            <p className={`text-lg font-bold ${fin.margemLiquida >= 10 ? "text-primary" : "text-destructive"}`}>{fin.margemLiquida.toFixed(1)}%</p>
+            <p className="text-xs text-muted-foreground">após despesas</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <CardDescontos fin={fin} />
 
       {/* Projeção */}
       <Card className="border-primary/30 bg-primary/5">
@@ -612,7 +793,7 @@ function PainelMensal() {
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Receita x Lucro no Mês</CardTitle></CardHeader>
           <CardContent>
-            <ChartContainer config={{ receita: { label: "Receita", color: "hsl(var(--primary))" }, lucro: { label: "Lucro Líq.", color: "hsl(142 60% 45%)" } }} className="h-[200px]">
+            <ChartContainer config={{ receita: { label: "Receita", color: "hsl(var(--primary))" }, lucro: { label: "Lucro Líq.", color: "hsl(142 60% 45%)" }, desconto: { label: "Desconto", color: "hsl(30 80% 55%)" } }} className="h-[200px]">
               <LineChart data={evolucaoMensal}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border/40" />
                 <XAxis dataKey="date" fontSize={10} tickLine={false} axisLine={false} />
@@ -620,13 +801,14 @@ function PainelMensal() {
                 <ChartTooltip content={<ChartTooltipContent />} />
                 <Line type="monotone" dataKey="receita" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} />
                 <Line type="monotone" dataKey="lucro" stroke="hsl(142 60% 45%)" strokeWidth={2} dot={false} />
+                <Line type="monotone" dataKey="desconto" stroke="hsl(30 80% 55%)" strokeWidth={1.5} dot={false} strokeDasharray="4 2" />
               </LineChart>
             </ChartContainer>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Top 5 Clientes por Lucro</CardTitle></CardHeader>
+          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Top 5 Clientes por Lucro Real</CardTitle></CardHeader>
           <CardContent>
             {topClientes.length === 0 ? (
               <p className="text-sm text-muted-foreground py-4 text-center">Sem dados</p>
