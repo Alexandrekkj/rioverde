@@ -25,7 +25,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       {/* Desktop sidebar */}
       <aside className="hidden md:flex md:w-56 md:flex-col md:border-r border-border bg-card">
         <div className="p-4">
-          <h1 className="text-lg font-bold text-primary">VendaFácil</h1>
+          <h1 className="text-lg font-bold text-primary">FácilVenda</h1>
         </div>
         <nav className="flex flex-1 flex-col gap-1 p-2">
           {navItems.map((item) => (
