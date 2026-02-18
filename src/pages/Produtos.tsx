@@ -8,9 +8,17 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from "@/components/ui/label";
 import { Plus, Search, Edit2, Trash2, TrendingUp } from "lucide-react";
 import { toast } from "sonner";
-import type { Tables, TablesInsert } from "@/integrations/supabase/types";
+import { z } from "zod";
+import type { Tables } from "@/integrations/supabase/types";
 
 type Produto = Tables<"produtos">;
+
+const produtoSchema = z.object({
+  nome: z.string().min(1, "Nome é obrigatório").max(255, "Nome muito longo"),
+  categoria: z.string().max(100, "Categoria muito longa").optional().or(z.literal("")),
+  preco_custo: z.number().min(0, "Preço de custo não pode ser negativo").max(999999.99, "Valor muito alto"),
+  preco: z.number().min(0, "Preço de revenda não pode ser negativo").max(999999.99, "Valor muito alto"),
+});
 
 export default function Produtos() {
   const [search, setSearch] = useState("");
@@ -28,12 +36,18 @@ export default function Produtos() {
   });
 
   const upsert = useMutation({
-    mutationFn: async (p: TablesInsert<"produtos">) => {
+    mutationFn: async (p: z.infer<typeof produtoSchema>) => {
+      const payload = {
+        nome: p.nome,
+        categoria: p.categoria || null,
+        preco_custo: p.preco_custo,
+        preco: p.preco,
+      };
       if (editing) {
-        const { error } = await supabase.from("produtos").update(p).eq("id", editing.id);
+        const { error } = await supabase.from("produtos").update(payload).eq("id", editing.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("produtos").insert(p);
+        const { error } = await supabase.from("produtos").insert(payload);
         if (error) throw error;
       }
     },
@@ -55,6 +69,7 @@ export default function Produtos() {
       queryClient.invalidateQueries({ queryKey: ["produtos"] });
       toast.success("Produto removido!");
     },
+    onError: () => toast.error("Erro ao remover produto"),
   });
 
   const filtered = produtos.filter(
@@ -66,14 +81,18 @@ export default function Produtos() {
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
-    const precoCusto = parseFloat(fd.get("preco_custo") as string) || 0;
-    const precoRevenda = parseFloat(fd.get("preco") as string) || 0;
-    upsert.mutate({
-      nome: fd.get("nome") as string,
-      categoria: (fd.get("categoria") as string) || null,
-      preco_custo: precoCusto,
-      preco: precoRevenda,
-    });
+    const raw = {
+      nome: (fd.get("nome") as string).trim(),
+      categoria: (fd.get("categoria") as string).trim(),
+      preco_custo: parseFloat(fd.get("preco_custo") as string) || 0,
+      preco: parseFloat(fd.get("preco") as string) || 0,
+    };
+    const result = produtoSchema.safeParse(raw);
+    if (!result.success) {
+      toast.error(result.error.errors[0].message);
+      return;
+    }
+    upsert.mutate(result.data);
   }
 
   const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -98,11 +117,11 @@ export default function Produtos() {
             <form onSubmit={handleSubmit} className="space-y-3">
               <div>
                 <Label htmlFor="nome">Nome *</Label>
-                <Input id="nome" name="nome" required defaultValue={editing?.nome ?? ""} />
+                <Input id="nome" name="nome" required maxLength={255} defaultValue={editing?.nome ?? ""} />
               </div>
               <div>
                 <Label htmlFor="categoria">Categoria</Label>
-                <Input id="categoria" name="categoria" placeholder="Ex: bebidas, laticínios" defaultValue={editing?.categoria ?? ""} />
+                <Input id="categoria" name="categoria" maxLength={100} placeholder="Ex: bebidas, laticínios" defaultValue={editing?.categoria ?? ""} />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -113,6 +132,7 @@ export default function Produtos() {
                     type="number"
                     step="0.01"
                     min="0"
+                    max="999999.99"
                     placeholder="0,00"
                     defaultValue={editing?.preco_custo ?? ""}
                   />
@@ -126,6 +146,7 @@ export default function Produtos() {
                     type="number"
                     step="0.01"
                     min="0"
+                    max="999999.99"
                     placeholder="0,00"
                     defaultValue={editing?.preco ?? ""}
                   />

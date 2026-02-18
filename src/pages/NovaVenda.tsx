@@ -101,7 +101,7 @@ export default function NovaVenda() {
       toast.success("Venda salva com sucesso!");
       navigate("/vendas");
     },
-    onError: (e) => toast.error(e.message || "Erro ao salvar venda"),
+    onError: () => toast.error("Erro ao salvar venda. Verifique os dados e tente novamente."),
   });
 
   function addProduto(produtoId: string) {
