@@ -1,0 +1,1 @@
+ALTER TABLE public.produtos ADD COLUMN preco_custo numeric NOT NULL DEFAULT 0;

@@ -13,6 +13,7 @@ import NovaVenda from "./pages/NovaVenda";
 import EditarVenda from "./pages/EditarVenda";
 import Despesas from "./pages/Despesas";
 import Insights from "./pages/Insights";
+import DashboardEstrategico from "./pages/DashboardEstrategico";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
 
@@ -34,6 +35,7 @@ const App = () => (
           <Route path="/vendas/:id" element={<ProtectedRoute><AppLayout><EditarVenda /></AppLayout></ProtectedRoute>} />
           <Route path="/despesas" element={<ProtectedRoute><AppLayout><Despesas /></AppLayout></ProtectedRoute>} />
           <Route path="/insights" element={<ProtectedRoute><AppLayout><Insights /></AppLayout></ProtectedRoute>} />
+          <Route path="/dashboard-estrategico" element={<ProtectedRoute><AppLayout><DashboardEstrategico /></AppLayout></ProtectedRoute>} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

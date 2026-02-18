@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { LayoutDashboard, ShoppingCart, Users, Package, Lightbulb, LogOut, Receipt } from "lucide-react";
+import { LayoutDashboard, ShoppingCart, Users, Package, Lightbulb, LogOut, Receipt, TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ const navItems = [
   { to: "/clientes", label: "Clientes", icon: Users },
   { to: "/produtos", label: "Produtos", icon: Package },
   { to: "/insights", label: "Insights", icon: Lightbulb },
+  { to: "/dashboard-estrategico", label: "Estratégico", icon: TrendingUp },
 ];
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
