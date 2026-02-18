@@ -8,9 +8,19 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from "@/components/ui/label";
 import { Plus, Search, Phone, MapPin, Edit2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import type { Tables, TablesInsert } from "@/integrations/supabase/types";
+import { z } from "zod";
+import type { Tables } from "@/integrations/supabase/types";
 
 type Cliente = Tables<"clientes">;
+
+const clienteSchema = z.object({
+  nome: z.string().min(1, "Nome é obrigatório").max(255, "Nome muito longo"),
+  nicho: z.string().max(100, "Nicho muito longo").optional().or(z.literal("")),
+  responsavel: z.string().max(255, "Nome muito longo").optional().or(z.literal("")),
+  telefone: z.string().max(20, "Telefone muito longo").optional().or(z.literal("")),
+  bairro: z.string().max(100, "Bairro muito longo").optional().or(z.literal("")),
+  cidade: z.string().max(100, "Cidade muito longa").optional().or(z.literal("")),
+});
 
 export default function Clientes() {
   const [search, setSearch] = useState("");
@@ -28,12 +38,20 @@ export default function Clientes() {
   });
 
   const upsert = useMutation({
-    mutationFn: async (c: TablesInsert<"clientes">) => {
+    mutationFn: async (c: z.infer<typeof clienteSchema>) => {
+      const payload = {
+        nome: c.nome,
+        nicho: c.nicho || null,
+        responsavel: c.responsavel || null,
+        telefone: c.telefone || null,
+        bairro: c.bairro || null,
+        cidade: c.cidade || null,
+      };
       if (editing) {
-        const { error } = await supabase.from("clientes").update(c).eq("id", editing.id);
+        const { error } = await supabase.from("clientes").update(payload).eq("id", editing.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("clientes").insert(c);
+        const { error } = await supabase.from("clientes").insert(payload);
         if (error) throw error;
       }
     },
@@ -55,6 +73,7 @@ export default function Clientes() {
       queryClient.invalidateQueries({ queryKey: ["clientes"] });
       toast.success("Cliente removido!");
     },
+    onError: () => toast.error("Erro ao remover cliente"),
   });
 
   const filtered = clientes.filter(
@@ -66,14 +85,20 @@ export default function Clientes() {
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
-    upsert.mutate({
-      nome: fd.get("nome") as string,
-      nicho: (fd.get("nicho") as string) || null,
-      responsavel: (fd.get("responsavel") as string) || null,
-      telefone: (fd.get("telefone") as string) || null,
-      bairro: (fd.get("bairro") as string) || null,
-      cidade: (fd.get("cidade") as string) || null,
-    });
+    const raw = {
+      nome: (fd.get("nome") as string).trim(),
+      nicho: (fd.get("nicho") as string).trim(),
+      responsavel: (fd.get("responsavel") as string).trim(),
+      telefone: (fd.get("telefone") as string).trim(),
+      bairro: (fd.get("bairro") as string).trim(),
+      cidade: (fd.get("cidade") as string).trim(),
+    };
+    const result = clienteSchema.safeParse(raw);
+    if (!result.success) {
+      toast.error(result.error.errors[0].message);
+      return;
+    }
+    upsert.mutate(result.data);
   }
 
   return (
@@ -89,13 +114,13 @@ export default function Clientes() {
               <DialogTitle>{editing ? "Editar Cliente" : "Novo Cliente"}</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-3">
-              <div><Label htmlFor="nome">Nome *</Label><Input id="nome" name="nome" required defaultValue={editing?.nome ?? ""} /></div>
-              <div><Label htmlFor="nicho">Nicho</Label><Input id="nicho" name="nicho" placeholder="Ex: mercado, padaria" defaultValue={editing?.nicho ?? ""} /></div>
-              <div><Label htmlFor="responsavel">Responsável</Label><Input id="responsavel" name="responsavel" defaultValue={editing?.responsavel ?? ""} /></div>
-              <div><Label htmlFor="telefone">Telefone</Label><Input id="telefone" name="telefone" defaultValue={editing?.telefone ?? ""} /></div>
+              <div><Label htmlFor="nome">Nome *</Label><Input id="nome" name="nome" required maxLength={255} defaultValue={editing?.nome ?? ""} /></div>
+              <div><Label htmlFor="nicho">Nicho</Label><Input id="nicho" name="nicho" maxLength={100} placeholder="Ex: mercado, padaria" defaultValue={editing?.nicho ?? ""} /></div>
+              <div><Label htmlFor="responsavel">Responsável</Label><Input id="responsavel" name="responsavel" maxLength={255} defaultValue={editing?.responsavel ?? ""} /></div>
+              <div><Label htmlFor="telefone">Telefone</Label><Input id="telefone" name="telefone" maxLength={20} defaultValue={editing?.telefone ?? ""} /></div>
               <div className="grid grid-cols-2 gap-2">
-                <div><Label htmlFor="bairro">Bairro</Label><Input id="bairro" name="bairro" defaultValue={editing?.bairro ?? ""} /></div>
-                <div><Label htmlFor="cidade">Cidade</Label><Input id="cidade" name="cidade" defaultValue={editing?.cidade ?? ""} /></div>
+                <div><Label htmlFor="bairro">Bairro</Label><Input id="bairro" name="bairro" maxLength={100} defaultValue={editing?.bairro ?? ""} /></div>
+                <div><Label htmlFor="cidade">Cidade</Label><Input id="cidade" name="cidade" maxLength={100} defaultValue={editing?.cidade ?? ""} /></div>
               </div>
               <Button type="submit" className="w-full" disabled={upsert.isPending}>Salvar</Button>
             </form>

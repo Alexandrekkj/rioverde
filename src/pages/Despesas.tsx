@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,8 +12,16 @@ import { Plus, Pencil, Trash2, Receipt } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
+import { z } from "zod";
 
 const TIPOS_DESPESA = ["Gasolina", "Alimentação", "Manutenção", "Material", "Transporte", "Outros"];
+
+const despesaSchema = z.object({
+  tipo: z.string().min(1, "Selecione o tipo de despesa"),
+  valor: z.number().min(0.01, "Valor deve ser maior que zero").max(999999.99, "Valor muito alto"),
+  data: z.string().min(1, "Data é obrigatória"),
+  observacoes: z.string().max(500, "Observações muito longas").optional().or(z.literal("")),
+});
 
 type Despesa = {
   id: string;
@@ -43,12 +51,25 @@ export default function Despesas() {
 
   const salvar = useMutation({
     mutationFn: async (form: FormData) => {
-      const payload = {
+      const raw = {
         tipo: tipoSelecionado || (form.get("tipo") as string),
-        valor: parseFloat(form.get("valor") as string) || 0,
-        data: new Date(form.get("data") as string).toISOString(),
-        observacoes: (form.get("observacoes") as string) || null,
+        valor: parseFloat(form.get("valor") as string),
+        data: form.get("data") as string,
+        observacoes: (form.get("observacoes") as string).trim(),
       };
+
+      const result = despesaSchema.safeParse(raw);
+      if (!result.success) {
+        throw new Error(result.error.errors[0].message);
+      }
+
+      const payload = {
+        tipo: result.data.tipo,
+        valor: result.data.valor,
+        data: new Date(result.data.data).toISOString(),
+        observacoes: result.data.observacoes || null,
+      };
+
       if (editando) {
         const { error } = await supabase.from("despesas").update(payload).eq("id", editando.id);
         if (error) throw error;
@@ -63,7 +84,7 @@ export default function Despesas() {
       setOpen(false);
       setEditando(null);
     },
-    onError: () => toast.error("Erro ao salvar despesa"),
+    onError: (e: Error) => toast.error(e.message || "Erro ao salvar despesa"),
   });
 
   const excluir = useMutation({
@@ -75,6 +96,7 @@ export default function Despesas() {
       queryClient.invalidateQueries({ queryKey: ["despesas"] });
       toast.success("Despesa excluída!");
     },
+    onError: () => toast.error("Erro ao excluir despesa"),
   });
 
   const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -116,7 +138,7 @@ export default function Despesas() {
               </div>
               <div>
                 <Label>Valor (R$) *</Label>
-                <Input name="valor" type="number" step="0.01" min={0} required defaultValue={editando?.valor ?? ""} />
+                <Input name="valor" type="number" step="0.01" min={0.01} max={999999.99} required defaultValue={editando?.valor ?? ""} />
               </div>
               <div>
                 <Label>Data *</Label>
@@ -124,7 +146,7 @@ export default function Despesas() {
               </div>
               <div>
                 <Label>Observações</Label>
-                <Textarea name="observacoes" defaultValue={editando?.observacoes ?? ""} />
+                <Textarea name="observacoes" maxLength={500} defaultValue={editando?.observacoes ?? ""} />
               </div>
               <Button type="submit" className="w-full" disabled={salvar.isPending}>Salvar</Button>
             </form>
