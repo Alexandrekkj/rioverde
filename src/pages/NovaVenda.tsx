@@ -72,35 +72,17 @@ export default function NovaVenda() {
     mutationFn: async () => {
       if (!clienteId) throw new Error("Selecione um cliente");
       if (itens.length === 0) throw new Error("Adicione ao menos um produto");
-
       const total = totalFinal;
       const { data: venda, error } = await supabase
         .from("vendas")
-        .insert({
-          cliente_id: clienteId,
-          desconto_geral: descontoGeral,
-          total,
-          forma_pagamento: formaPagamento,
-          prazo_dias: formaPagamento === "a_prazo" ? prazoDias : null,
-        })
-        .select()
-        .single();
+        .insert({ cliente_id: clienteId, desconto_geral: descontoGeral, total, forma_pagamento: formaPagamento, prazo_dias: formaPagamento === "a_prazo" ? prazoDias : null })
+        .select().single();
       if (error) throw error;
-
-      const itensInsert = itens.map((i) => ({
-        venda_id: venda.id,
-        produto_id: i.produto_id,
-        quantidade: i.quantidade,
-        preco_unitario: i.preco_unitario,
-        desconto: i.desconto,
-      }));
+      const itensInsert = itens.map((i) => ({ venda_id: venda.id, produto_id: i.produto_id, quantidade: i.quantidade, preco_unitario: i.preco_unitario, desconto: i.desconto }));
       const { error: err2 } = await supabase.from("itens_venda").insert(itensInsert);
       if (err2) throw err2;
     },
-    onSuccess: () => {
-      toast.success("Venda salva com sucesso!");
-      navigate("/vendas");
-    },
+    onSuccess: () => { toast.success("Venda salva com sucesso!"); navigate("/vendas"); },
     onError: () => toast.error("Erro ao salvar venda. Verifique os dados e tente novamente."),
   });
 
@@ -127,29 +109,27 @@ export default function NovaVenda() {
   const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
   return (
-    <div className="space-y-4">
-      <h1 className="text-xl font-bold">Nova Venda</h1>
+    <div className="space-y-5">
+      <h1 className="heading-gradient text-2xl md:text-3xl">Nova Venda</h1>
 
       {/* Cliente */}
-      <Card>
-        <CardHeader className="pb-2"><CardTitle className="text-sm">Cliente</CardTitle></CardHeader>
-        <CardContent className="space-y-2">
+      <Card className="card-interactive">
+        <CardHeader className="pb-3"><CardTitle className="text-sm font-semibold">Cliente</CardTitle></CardHeader>
+        <CardContent className="space-y-3">
           <Select value={clienteId} onValueChange={setClienteId}>
             <SelectTrigger><SelectValue placeholder="Selecionar cliente" /></SelectTrigger>
-            <SelectContent>
-              {clientes.map((c) => (<SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>))}
-            </SelectContent>
+            <SelectContent>{clientes.map((c) => (<SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>))}</SelectContent>
           </Select>
           <Dialog open={novoClienteOpen} onOpenChange={setNovoClienteOpen}>
             <DialogTrigger asChild>
-              <Button variant="outline" size="sm" className="w-full"><Plus className="mr-1 h-4 w-4" />Novo Cliente</Button>
+              <Button variant="outline" size="sm" className="w-full"><Plus className="mr-1.5 h-4 w-4" />Novo Cliente</Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader><DialogTitle>Novo Cliente</DialogTitle></DialogHeader>
-              <form onSubmit={(e) => { e.preventDefault(); const fd = new FormData(e.currentTarget); novoCliente.mutate({ nome: fd.get("nome") as string, nicho: (fd.get("nicho") as string) || null, telefone: (fd.get("telefone") as string) || null }); }} className="space-y-3">
-                <div><Label>Nome *</Label><Input name="nome" required /></div>
-                <div><Label>Nicho</Label><Input name="nicho" /></div>
-                <div><Label>Telefone</Label><Input name="telefone" /></div>
+              <form onSubmit={(e) => { e.preventDefault(); const fd = new FormData(e.currentTarget); novoCliente.mutate({ nome: fd.get("nome") as string, nicho: (fd.get("nicho") as string) || null, telefone: (fd.get("telefone") as string) || null }); }} className="space-y-4">
+                <div className="space-y-1.5"><Label>Nome *</Label><Input name="nome" required /></div>
+                <div className="space-y-1.5"><Label>Nicho</Label><Input name="nicho" /></div>
+                <div className="space-y-1.5"><Label>Telefone</Label><Input name="telefone" /></div>
                 <Button type="submit" className="w-full" disabled={novoCliente.isPending}>Salvar</Button>
               </form>
             </DialogContent>
@@ -158,55 +138,50 @@ export default function NovaVenda() {
       </Card>
 
       {/* Forma de Pagamento */}
-      <Card>
-        <CardHeader className="pb-2"><CardTitle className="text-sm">Forma de Pagamento</CardTitle></CardHeader>
-        <CardContent className="space-y-2">
+      <Card className="card-interactive">
+        <CardHeader className="pb-3"><CardTitle className="text-sm font-semibold">Forma de Pagamento</CardTitle></CardHeader>
+        <CardContent className="space-y-3">
           <Select value={formaPagamento} onValueChange={setFormaPagamento}>
             <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              {FORMAS_PAGAMENTO.map((f) => (<SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>))}
-            </SelectContent>
+            <SelectContent>{FORMAS_PAGAMENTO.map((f) => (<SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>))}</SelectContent>
           </Select>
           {formaPagamento === "a_prazo" && (
-            <div className="flex items-center gap-2">
-              <Label className="text-xs whitespace-nowrap">Prazo (dias)</Label>
-              <Input type="number" min={1} className="w-24 h-8 text-xs" value={prazoDias ?? ""} onChange={(e) => setPrazoDias(parseInt(e.target.value) || null)} />
+            <div className="flex items-center gap-3">
+              <Label className="text-xs whitespace-nowrap font-medium">Prazo (dias)</Label>
+              <Input type="number" min={1} className="w-24 h-9" value={prazoDias ?? ""} onChange={(e) => setPrazoDias(parseInt(e.target.value) || null)} />
             </div>
           )}
         </CardContent>
       </Card>
 
       {/* Produtos */}
-      <Card>
-        <CardHeader className="pb-2"><CardTitle className="text-sm">Produtos</CardTitle></CardHeader>
+      <Card className="card-interactive">
+        <CardHeader className="pb-3"><CardTitle className="text-sm font-semibold">Produtos</CardTitle></CardHeader>
         <CardContent className="space-y-3">
           <Select onValueChange={addProduto}>
             <SelectTrigger><SelectValue placeholder="Adicionar produto" /></SelectTrigger>
-            <SelectContent>
-              {produtos.map((p) => (<SelectItem key={p.id} value={p.id}>{p.nome} — {fmt(p.preco)}</SelectItem>))}
-            </SelectContent>
+            <SelectContent>{produtos.map((p) => (<SelectItem key={p.id} value={p.id}>{p.nome} — {fmt(p.preco)}</SelectItem>))}</SelectContent>
           </Select>
-
           {itens.length === 0 ? (
-            <p className="text-xs text-muted-foreground">Nenhum produto adicionado.</p>
+            <p className="text-xs text-muted-foreground py-2">Nenhum produto adicionado.</p>
           ) : (
             <div className="space-y-2">
               {itens.map((item, idx) => (
-                <div key={idx} className="flex flex-wrap items-center gap-2 rounded-lg border border-border p-2 text-sm">
+                <div key={idx} className="flex flex-wrap items-center gap-2 rounded-lg border border-border p-3 text-sm transition-colors hover:border-primary/20">
                   <span className="flex-1 min-w-0 truncate font-medium">{item.nome}</span>
-                  <div className="flex items-center gap-1">
-                    <Label className="text-xs">Qtd</Label>
+                  <div className="flex items-center gap-1.5">
+                    <Label className="text-xs text-muted-foreground">Qtd</Label>
                     <Input type="number" min={1} className="w-16 h-8 text-xs" value={item.quantidade} onChange={(e) => updateItem(idx, "quantidade", parseInt(e.target.value) || 1)} />
                   </div>
-                  <div className="flex items-center gap-1">
-                    <Label className="text-xs">Preço</Label>
+                  <div className="flex items-center gap-1.5">
+                    <Label className="text-xs text-muted-foreground">Preço</Label>
                     <Input type="number" step="0.01" min={0} className="w-20 h-8 text-xs" value={item.preco_unitario} onChange={(e) => updateItem(idx, "preco_unitario", parseFloat(e.target.value) || 0)} />
                   </div>
-                  <div className="flex items-center gap-1">
-                    <Label className="text-xs">Desc</Label>
+                  <div className="flex items-center gap-1.5">
+                    <Label className="text-xs text-muted-foreground">Desc</Label>
                     <Input type="number" step="0.01" min={0} className="w-20 h-8 text-xs" value={item.desconto} onChange={(e) => updateItem(idx, "desconto", parseFloat(e.target.value) || 0)} />
                   </div>
-                  <span className="text-xs font-semibold">{fmt(item.quantidade * item.preco_unitario - item.desconto)}</span>
+                  <span className="text-xs font-bold text-primary">{fmt(item.quantidade * item.preco_unitario - item.desconto)}</span>
                   <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => removeItem(idx)}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button>
                 </div>
               ))}
@@ -216,21 +191,21 @@ export default function NovaVenda() {
       </Card>
 
       {/* Totais */}
-      <Card>
-        <CardContent className="space-y-2 p-4">
-          <div className="flex justify-between text-sm"><span>Subtotal</span><span>{fmt(subtotal)}</span></div>
-          <div className="flex items-center justify-between gap-2 text-sm">
-            <span>Desconto geral (R$)</span>
-            <Input type="number" step="0.01" min={0} className="w-28 h-8 text-xs text-right" value={descontoGeral} onChange={(e) => setDescontoGeral(parseFloat(e.target.value) || 0)} />
+      <Card className="card-interactive">
+        <CardContent className="space-y-3 p-5">
+          <div className="flex justify-between text-sm"><span className="text-muted-foreground">Subtotal</span><span className="font-medium">{fmt(subtotal)}</span></div>
+          <div className="flex items-center justify-between gap-3 text-sm">
+            <span className="text-muted-foreground">Desconto geral (R$)</span>
+            <Input type="number" step="0.01" min={0} className="w-28 h-9 text-right" value={descontoGeral} onChange={(e) => setDescontoGeral(parseFloat(e.target.value) || 0)} />
           </div>
-          <div className="flex justify-between text-base font-bold border-t border-border pt-2">
+          <div className="flex justify-between text-lg font-bold border-t border-border pt-3">
             <span>Total</span><span className="text-primary">{fmt(totalFinal)}</span>
           </div>
         </CardContent>
       </Card>
 
       <Button className="w-full" size="lg" onClick={() => salvarVenda.mutate()} disabled={salvarVenda.isPending}>
-        <ShoppingCart className="mr-2 h-4 w-4" />Salvar Venda
+        <ShoppingCart className="mr-2 h-5 w-5" />Salvar Venda
       </Button>
     </div>
   );

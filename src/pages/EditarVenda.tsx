@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Trash2, Save, ArrowLeft } from "lucide-react";
+import { Trash2, Save, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate, useParams } from "react-router-dom";
 
@@ -34,112 +34,38 @@ export default function EditarVenda() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
-  const { data: clientes = [] } = useQuery({
-    queryKey: ["clientes"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("clientes").select("*").order("nome");
-      if (error) throw error;
-      return data;
-    },
-  });
-
-  const { data: produtos = [] } = useQuery({
-    queryKey: ["produtos"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("produtos").select("*").order("nome");
-      if (error) throw error;
-      return data;
-    },
-  });
+  const { data: clientes = [] } = useQuery({ queryKey: ["clientes"], queryFn: async () => { const { data, error } = await supabase.from("clientes").select("*").order("nome"); if (error) throw error; return data; } });
+  const { data: produtos = [] } = useQuery({ queryKey: ["produtos"], queryFn: async () => { const { data, error } = await supabase.from("produtos").select("*").order("nome"); if (error) throw error; return data; } });
 
   const { data: venda, isLoading } = useQuery({
     queryKey: ["venda", id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("vendas")
-        .select("*, clientes(nome)")
-        .eq("id", id!)
-        .maybeSingle();
-      if (error) throw error;
-      return data;
-    },
+    queryFn: async () => { const { data, error } = await supabase.from("vendas").select("*, clientes(nome)").eq("id", id!).maybeSingle(); if (error) throw error; return data; },
     enabled: !!id,
   });
 
   const { data: itensExistentes = [] } = useQuery({
     queryKey: ["itens-venda", id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("itens_venda")
-        .select("*, produtos(nome)")
-        .eq("venda_id", id!);
-      if (error) throw error;
-      return data;
-    },
+    queryFn: async () => { const { data, error } = await supabase.from("itens_venda").select("*, produtos(nome)").eq("venda_id", id!); if (error) throw error; return data; },
     enabled: !!id,
   });
 
-  useEffect(() => {
-    if (venda) {
-      setClienteId(venda.cliente_id);
-      setDescontoGeral(venda.desconto_geral);
-      setFormaPagamento(venda.forma_pagamento ?? "dinheiro");
-      setPrazoDias(venda.prazo_dias ?? null);
-    }
-  }, [venda]);
-
-  useEffect(() => {
-    if (itensExistentes.length > 0) {
-      setItens(
-        itensExistentes.map((i: any) => ({
-          produto_id: i.produto_id,
-          nome: i.produtos?.nome ?? "Produto removido",
-          quantidade: i.quantidade,
-          preco_unitario: i.preco_unitario,
-          desconto: i.desconto,
-        }))
-      );
-    }
-  }, [itensExistentes]);
+  useEffect(() => { if (venda) { setClienteId(venda.cliente_id); setDescontoGeral(venda.desconto_geral); setFormaPagamento(venda.forma_pagamento ?? "dinheiro"); setPrazoDias(venda.prazo_dias ?? null); } }, [venda]);
+  useEffect(() => { if (itensExistentes.length > 0) { setItens(itensExistentes.map((i: any) => ({ produto_id: i.produto_id, nome: i.produtos?.nome ?? "Produto removido", quantidade: i.quantidade, preco_unitario: i.preco_unitario, desconto: i.desconto }))); } }, [itensExistentes]);
 
   const salvarVenda = useMutation({
     mutationFn: async () => {
       if (!clienteId) throw new Error("Selecione um cliente");
       if (itens.length === 0) throw new Error("Adicione ao menos um produto");
-
       const total = totalFinal;
-      const { error } = await supabase
-        .from("vendas")
-        .update({
-          cliente_id: clienteId,
-          desconto_geral: descontoGeral,
-          total,
-          forma_pagamento: formaPagamento,
-          prazo_dias: formaPagamento === "a_prazo" ? prazoDias : null,
-        })
-        .eq("id", id!);
+      const { error } = await supabase.from("vendas").update({ cliente_id: clienteId, desconto_geral: descontoGeral, total, forma_pagamento: formaPagamento, prazo_dias: formaPagamento === "a_prazo" ? prazoDias : null }).eq("id", id!);
       if (error) throw error;
-
-      // Delete existing items and re-insert
       const { error: delErr } = await supabase.from("itens_venda").delete().eq("venda_id", id!);
       if (delErr) throw delErr;
-
-      const itensInsert = itens.map((i) => ({
-        venda_id: id!,
-        produto_id: i.produto_id,
-        quantidade: i.quantidade,
-        preco_unitario: i.preco_unitario,
-        desconto: i.desconto,
-      }));
+      const itensInsert = itens.map((i) => ({ venda_id: id!, produto_id: i.produto_id, quantidade: i.quantidade, preco_unitario: i.preco_unitario, desconto: i.desconto }));
       const { error: err2 } = await supabase.from("itens_venda").insert(itensInsert);
       if (err2) throw err2;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["vendas"] });
-      queryClient.invalidateQueries({ queryKey: ["venda", id] });
-      toast.success("Venda atualizada com sucesso!");
-      navigate("/vendas");
-    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["vendas"] }); queryClient.invalidateQueries({ queryKey: ["venda", id] }); toast.success("Venda atualizada com sucesso!"); navigate("/vendas"); },
     onError: (e) => toast.error(e.message || "Erro ao salvar venda"),
   });
 
@@ -157,9 +83,7 @@ export default function EditarVenda() {
     setItens(itens.map((item, i) => i === idx ? { ...item, [field]: value } : item));
   }
 
-  function removeItem(idx: number) {
-    setItens(itens.filter((_, i) => i !== idx));
-  }
+  function removeItem(idx: number) { setItens(itens.filter((_, i) => i !== idx)); }
 
   const subtotal = useMemo(() => itens.reduce((sum, i) => sum + i.quantidade * i.preco_unitario - i.desconto, 0), [itens]);
   const totalFinal = useMemo(() => Math.max(0, subtotal - descontoGeral), [subtotal, descontoGeral]);
@@ -169,85 +93,65 @@ export default function EditarVenda() {
   if (!venda) return <p className="p-4 text-sm text-muted-foreground">Venda não encontrada.</p>;
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-2">
-        <Button variant="ghost" size="icon" onClick={() => navigate("/vendas")}><ArrowLeft className="h-4 w-4" /></Button>
-        <h1 className="text-xl font-bold">Editar Venda</h1>
+    <div className="space-y-5">
+      <div className="flex items-center gap-3">
+        <Button variant="ghost" size="icon" onClick={() => navigate("/vendas")}><ArrowLeft className="h-5 w-5" /></Button>
+        <h1 className="heading-gradient text-2xl md:text-3xl">Editar Venda</h1>
       </div>
 
-      {/* Cliente */}
-      <Card>
-        <CardHeader className="pb-2"><CardTitle className="text-sm">Cliente</CardTitle></CardHeader>
+      <Card className="card-interactive">
+        <CardHeader className="pb-3"><CardTitle className="text-sm font-semibold">Cliente</CardTitle></CardHeader>
         <CardContent>
           <Select value={clienteId} onValueChange={setClienteId}>
             <SelectTrigger><SelectValue placeholder="Selecionar cliente" /></SelectTrigger>
-            <SelectContent>
-              {clientes.map((c) => (
-                <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>
-              ))}
-            </SelectContent>
+            <SelectContent>{clientes.map((c) => (<SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>))}</SelectContent>
           </Select>
         </CardContent>
       </Card>
 
-      {/* Forma de Pagamento */}
-      <Card>
-        <CardHeader className="pb-2"><CardTitle className="text-sm">Forma de Pagamento</CardTitle></CardHeader>
-        <CardContent className="space-y-2">
+      <Card className="card-interactive">
+        <CardHeader className="pb-3"><CardTitle className="text-sm font-semibold">Forma de Pagamento</CardTitle></CardHeader>
+        <CardContent className="space-y-3">
           <Select value={formaPagamento} onValueChange={setFormaPagamento}>
             <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              {FORMAS_PAGAMENTO.map((f) => (
-                <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>
-              ))}
-            </SelectContent>
+            <SelectContent>{FORMAS_PAGAMENTO.map((f) => (<SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>))}</SelectContent>
           </Select>
           {formaPagamento === "a_prazo" && (
-            <div className="flex items-center gap-2">
-              <Label className="text-xs whitespace-nowrap">Prazo (dias)</Label>
-              <Input
-                type="number" min={1} className="w-24 h-8 text-xs"
-                value={prazoDias ?? ""}
-                onChange={(e) => setPrazoDias(parseInt(e.target.value) || null)}
-              />
+            <div className="flex items-center gap-3">
+              <Label className="text-xs whitespace-nowrap font-medium">Prazo (dias)</Label>
+              <Input type="number" min={1} className="w-24 h-9" value={prazoDias ?? ""} onChange={(e) => setPrazoDias(parseInt(e.target.value) || null)} />
             </div>
           )}
         </CardContent>
       </Card>
 
-      {/* Produtos */}
-      <Card>
-        <CardHeader className="pb-2"><CardTitle className="text-sm">Produtos</CardTitle></CardHeader>
+      <Card className="card-interactive">
+        <CardHeader className="pb-3"><CardTitle className="text-sm font-semibold">Produtos</CardTitle></CardHeader>
         <CardContent className="space-y-3">
           <Select onValueChange={addProduto}>
             <SelectTrigger><SelectValue placeholder="Adicionar produto" /></SelectTrigger>
-            <SelectContent>
-              {produtos.map((p) => (
-                <SelectItem key={p.id} value={p.id}>{p.nome} — {fmt(p.preco)}</SelectItem>
-              ))}
-            </SelectContent>
+            <SelectContent>{produtos.map((p) => (<SelectItem key={p.id} value={p.id}>{p.nome} — {fmt(p.preco)}</SelectItem>))}</SelectContent>
           </Select>
-
           {itens.length === 0 ? (
-            <p className="text-xs text-muted-foreground">Nenhum produto adicionado.</p>
+            <p className="text-xs text-muted-foreground py-2">Nenhum produto adicionado.</p>
           ) : (
             <div className="space-y-2">
               {itens.map((item, idx) => (
-                <div key={idx} className="flex flex-wrap items-center gap-2 rounded-lg border border-border p-2 text-sm">
+                <div key={idx} className="flex flex-wrap items-center gap-2 rounded-lg border border-border p-3 text-sm transition-colors hover:border-primary/20">
                   <span className="flex-1 min-w-0 truncate font-medium">{item.nome}</span>
-                  <div className="flex items-center gap-1">
-                    <Label className="text-xs">Qtd</Label>
+                  <div className="flex items-center gap-1.5">
+                    <Label className="text-xs text-muted-foreground">Qtd</Label>
                     <Input type="number" min={1} className="w-16 h-8 text-xs" value={item.quantidade} onChange={(e) => updateItem(idx, "quantidade", parseInt(e.target.value) || 1)} />
                   </div>
-                  <div className="flex items-center gap-1">
-                    <Label className="text-xs">Preço</Label>
+                  <div className="flex items-center gap-1.5">
+                    <Label className="text-xs text-muted-foreground">Preço</Label>
                     <Input type="number" step="0.01" min={0} className="w-20 h-8 text-xs" value={item.preco_unitario} onChange={(e) => updateItem(idx, "preco_unitario", parseFloat(e.target.value) || 0)} />
                   </div>
-                  <div className="flex items-center gap-1">
-                    <Label className="text-xs">Desc</Label>
+                  <div className="flex items-center gap-1.5">
+                    <Label className="text-xs text-muted-foreground">Desc</Label>
                     <Input type="number" step="0.01" min={0} className="w-20 h-8 text-xs" value={item.desconto} onChange={(e) => updateItem(idx, "desconto", parseFloat(e.target.value) || 0)} />
                   </div>
-                  <span className="text-xs font-semibold">{fmt(item.quantidade * item.preco_unitario - item.desconto)}</span>
+                  <span className="text-xs font-bold text-primary">{fmt(item.quantidade * item.preco_unitario - item.desconto)}</span>
                   <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => removeItem(idx)}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button>
                 </div>
               ))}
@@ -256,22 +160,21 @@ export default function EditarVenda() {
         </CardContent>
       </Card>
 
-      {/* Totais */}
-      <Card>
-        <CardContent className="space-y-2 p-4">
-          <div className="flex justify-between text-sm"><span>Subtotal</span><span>{fmt(subtotal)}</span></div>
-          <div className="flex items-center justify-between gap-2 text-sm">
-            <span>Desconto geral (R$)</span>
-            <Input type="number" step="0.01" min={0} className="w-28 h-8 text-xs text-right" value={descontoGeral} onChange={(e) => setDescontoGeral(parseFloat(e.target.value) || 0)} />
+      <Card className="card-interactive">
+        <CardContent className="space-y-3 p-5">
+          <div className="flex justify-between text-sm"><span className="text-muted-foreground">Subtotal</span><span className="font-medium">{fmt(subtotal)}</span></div>
+          <div className="flex items-center justify-between gap-3 text-sm">
+            <span className="text-muted-foreground">Desconto geral (R$)</span>
+            <Input type="number" step="0.01" min={0} className="w-28 h-9 text-right" value={descontoGeral} onChange={(e) => setDescontoGeral(parseFloat(e.target.value) || 0)} />
           </div>
-          <div className="flex justify-between text-base font-bold border-t border-border pt-2">
+          <div className="flex justify-between text-lg font-bold border-t border-border pt-3">
             <span>Total</span><span className="text-primary">{fmt(totalFinal)}</span>
           </div>
         </CardContent>
       </Card>
 
       <Button className="w-full" size="lg" onClick={() => salvarVenda.mutate()} disabled={salvarVenda.isPending}>
-        <Save className="mr-2 h-4 w-4" />Salvar Alterações
+        <Save className="mr-2 h-5 w-5" />Salvar Alterações
       </Button>
     </div>
   );

@@ -102,25 +102,25 @@ export default function Clientes() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <div className="flex items-center justify-between gap-3">
-        <h1 className="text-xl font-bold">Clientes</h1>
+        <h1 className="heading-gradient text-2xl md:text-3xl">Clientes</h1>
         <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) setEditing(null); }}>
           <DialogTrigger asChild>
-            <Button size="sm"><Plus className="mr-1 h-4 w-4" />Novo</Button>
+            <Button size="sm"><Plus className="mr-1.5 h-4 w-4" />Novo</Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>{editing ? "Editar Cliente" : "Novo Cliente"}</DialogTitle>
             </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-3">
-              <div><Label htmlFor="nome">Nome *</Label><Input id="nome" name="nome" required maxLength={255} defaultValue={editing?.nome ?? ""} /></div>
-              <div><Label htmlFor="nicho">Nicho</Label><Input id="nicho" name="nicho" maxLength={100} placeholder="Ex: mercado, padaria" defaultValue={editing?.nicho ?? ""} /></div>
-              <div><Label htmlFor="responsavel">Responsável</Label><Input id="responsavel" name="responsavel" maxLength={255} defaultValue={editing?.responsavel ?? ""} /></div>
-              <div><Label htmlFor="telefone">Telefone</Label><Input id="telefone" name="telefone" maxLength={20} defaultValue={editing?.telefone ?? ""} /></div>
-              <div className="grid grid-cols-2 gap-2">
-                <div><Label htmlFor="bairro">Bairro</Label><Input id="bairro" name="bairro" maxLength={100} defaultValue={editing?.bairro ?? ""} /></div>
-                <div><Label htmlFor="cidade">Cidade</Label><Input id="cidade" name="cidade" maxLength={100} defaultValue={editing?.cidade ?? ""} /></div>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-1.5"><Label htmlFor="nome">Nome *</Label><Input id="nome" name="nome" required maxLength={255} defaultValue={editing?.nome ?? ""} /></div>
+              <div className="space-y-1.5"><Label htmlFor="nicho">Nicho</Label><Input id="nicho" name="nicho" maxLength={100} placeholder="Ex: mercado, padaria" defaultValue={editing?.nicho ?? ""} /></div>
+              <div className="space-y-1.5"><Label htmlFor="responsavel">Responsável</Label><Input id="responsavel" name="responsavel" maxLength={255} defaultValue={editing?.responsavel ?? ""} /></div>
+              <div className="space-y-1.5"><Label htmlFor="telefone">Telefone</Label><Input id="telefone" name="telefone" maxLength={20} defaultValue={editing?.telefone ?? ""} /></div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5"><Label htmlFor="bairro">Bairro</Label><Input id="bairro" name="bairro" maxLength={100} defaultValue={editing?.bairro ?? ""} /></div>
+                <div className="space-y-1.5"><Label htmlFor="cidade">Cidade</Label><Input id="cidade" name="cidade" maxLength={100} defaultValue={editing?.cidade ?? ""} /></div>
               </div>
               <Button type="submit" className="w-full" disabled={upsert.isPending}>Salvar</Button>
             </form>
@@ -132,32 +132,32 @@ export default function Clientes() {
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
           placeholder="Buscar por nome ou nicho..."
-          className="pl-9"
+          className="pl-10"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
       </div>
 
       {isLoading ? (
-        <p className="text-sm text-muted-foreground">Carregando...</p>
+        <p className="text-sm text-muted-foreground py-8 text-center">Carregando...</p>
       ) : filtered.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Nenhum cliente encontrado.</p>
+        <p className="text-sm text-muted-foreground py-8 text-center">Nenhum cliente encontrado.</p>
       ) : (
         <div className="grid gap-2">
-          {filtered.map((c) => (
-            <Card key={c.id}>
-              <CardContent className="flex items-center justify-between p-3">
+          {filtered.map((c, index) => (
+            <Card key={c.id} className="card-interactive animate-fade-in" style={{ animationDelay: `${Math.min(index * 30, 300)}ms` }}>
+              <CardContent className="flex items-center justify-between p-3 sm:p-4">
                 <div className="min-w-0">
-                  <p className="font-medium truncate">{c.nome}</p>
-                  <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
-                    {c.nicho && <span className="rounded bg-accent px-1.5 py-0.5 text-accent-foreground">{c.nicho}</span>}
+                  <p className="font-semibold truncate">{c.nome}</p>
+                  <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground mt-1">
+                    {c.nicho && <span className="rounded-md bg-accent px-2 py-0.5 text-accent-foreground font-medium">{c.nicho}</span>}
                     {c.telefone && <span className="flex items-center gap-1"><Phone className="h-3 w-3" />{c.telefone}</span>}
                     {(c.bairro || c.cidade) && (
                       <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{[c.bairro, c.cidade].filter(Boolean).join(", ")}</span>
                     )}
                   </div>
                 </div>
-                <div className="flex gap-1 ml-2">
+                <div className="flex gap-1 ml-2 shrink-0">
                   <Button variant="ghost" size="icon" onClick={() => { setEditing(c); setOpen(true); }}>
                     <Edit2 className="h-4 w-4" />
                   </Button>

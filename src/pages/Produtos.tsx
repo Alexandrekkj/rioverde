@@ -37,12 +37,7 @@ export default function Produtos() {
 
   const upsert = useMutation({
     mutationFn: async (p: z.infer<typeof produtoSchema>) => {
-      const payload = {
-        nome: p.nome,
-        categoria: p.categoria || null,
-        preco_custo: p.preco_custo,
-        preco: p.preco,
-      };
+      const payload = { nome: p.nome, categoria: p.categoria || null, preco_custo: p.preco_custo, preco: p.preco };
       if (editing) {
         const { error } = await supabase.from("produtos").update(payload).eq("id", editing.id);
         if (error) throw error;
@@ -96,61 +91,33 @@ export default function Produtos() {
   }
 
   const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-
-  const calcMargem = (custo: number, venda: number) => {
-    if (venda <= 0) return 0;
-    return ((venda - custo) / venda) * 100;
-  };
+  const calcMargem = (custo: number, venda: number) => (venda <= 0 ? 0 : ((venda - custo) / venda) * 100);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <div className="flex items-center justify-between gap-3">
-        <h1 className="text-xl font-bold">Produtos</h1>
+        <h1 className="heading-gradient text-2xl md:text-3xl">Produtos</h1>
         <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) setEditing(null); }}>
           <DialogTrigger asChild>
-            <Button size="sm"><Plus className="mr-1 h-4 w-4" />Novo</Button>
+            <Button size="sm"><Plus className="mr-1.5 h-4 w-4" />Novo</Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>{editing ? "Editar Produto" : "Novo Produto"}</DialogTitle>
             </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-3">
-              <div>
-                <Label htmlFor="nome">Nome *</Label>
-                <Input id="nome" name="nome" required maxLength={255} defaultValue={editing?.nome ?? ""} />
-              </div>
-              <div>
-                <Label htmlFor="categoria">Categoria</Label>
-                <Input id="categoria" name="categoria" maxLength={100} placeholder="Ex: bebidas, laticínios" defaultValue={editing?.categoria ?? ""} />
-              </div>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-1.5"><Label htmlFor="nome">Nome *</Label><Input id="nome" name="nome" required maxLength={255} defaultValue={editing?.nome ?? ""} /></div>
+              <div className="space-y-1.5"><Label htmlFor="categoria">Categoria</Label><Input id="categoria" name="categoria" maxLength={100} placeholder="Ex: bebidas, laticínios" defaultValue={editing?.categoria ?? ""} /></div>
               <div className="grid grid-cols-2 gap-3">
-                <div>
+                <div className="space-y-1.5">
                   <Label htmlFor="preco_custo">Preço de Custo (R$)</Label>
-                  <Input
-                    id="preco_custo"
-                    name="preco_custo"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    max="999999.99"
-                    placeholder="0,00"
-                    defaultValue={editing?.preco_custo ?? ""}
-                  />
-                  <p className="mt-1 text-xs text-muted-foreground">Quanto você paga</p>
+                  <Input id="preco_custo" name="preco_custo" type="number" step="0.01" min="0" max="999999.99" placeholder="0,00" defaultValue={editing?.preco_custo ?? ""} />
+                  <p className="text-xs text-muted-foreground">Quanto você paga</p>
                 </div>
-                <div>
+                <div className="space-y-1.5">
                   <Label htmlFor="preco">Preço de Revenda (R$)</Label>
-                  <Input
-                    id="preco"
-                    name="preco"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    max="999999.99"
-                    placeholder="0,00"
-                    defaultValue={editing?.preco ?? ""}
-                  />
-                  <p className="mt-1 text-xs text-muted-foreground">Quanto você vende</p>
+                  <Input id="preco" name="preco" type="number" step="0.01" min="0" max="999999.99" placeholder="0,00" defaultValue={editing?.preco ?? ""} />
+                  <p className="text-xs text-muted-foreground">Quanto você vende</p>
                 </div>
               </div>
               <Button type="submit" className="w-full" disabled={upsert.isPending}>Salvar</Button>
@@ -161,40 +128,38 @@ export default function Produtos() {
 
       <div className="relative">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input placeholder="Buscar por nome ou categoria..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
+        <Input placeholder="Buscar por nome ou categoria..." className="pl-10" value={search} onChange={(e) => setSearch(e.target.value)} />
       </div>
 
       {isLoading ? (
-        <p className="text-sm text-muted-foreground">Carregando...</p>
+        <p className="text-sm text-muted-foreground py-8 text-center">Carregando...</p>
       ) : filtered.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Nenhum produto encontrado.</p>
+        <p className="text-sm text-muted-foreground py-8 text-center">Nenhum produto encontrado.</p>
       ) : (
         <div className="grid gap-2">
-          {filtered.map((p) => {
+          {filtered.map((p, index) => {
             const margem = calcMargem(p.preco_custo, p.preco);
             const lucroUnit = p.preco - p.preco_custo;
             return (
-              <Card key={p.id}>
-                <CardContent className="flex items-center justify-between p-3">
+              <Card key={p.id} className="card-interactive animate-fade-in" style={{ animationDelay: `${Math.min(index * 30, 300)}ms` }}>
+                <CardContent className="flex items-center justify-between p-3 sm:p-4">
                   <div className="min-w-0 flex-1">
-                    <p className="font-medium truncate">{p.nome}</p>
-                    <div className="flex flex-wrap gap-2 text-xs text-muted-foreground mt-0.5">
-                      {p.categoria && (
-                        <span className="rounded bg-accent px-1.5 py-0.5 text-accent-foreground">{p.categoria}</span>
-                      )}
-                      <span className="text-muted-foreground">Custo: <span className="font-medium">{fmt(p.preco_custo)}</span></span>
+                    <p className="font-semibold truncate">{p.nome}</p>
+                    <div className="flex flex-wrap gap-2 text-xs text-muted-foreground mt-1">
+                      {p.categoria && <span className="rounded-md bg-accent px-2 py-0.5 text-accent-foreground font-medium">{p.categoria}</span>}
+                      <span>Custo: <span className="font-medium">{fmt(p.preco_custo)}</span></span>
                       <span className="text-foreground font-semibold">Revenda: {fmt(p.preco)}</span>
                     </div>
                     {p.preco > 0 && (
-                      <div className="flex items-center gap-1.5 mt-1">
+                      <div className="flex items-center gap-1.5 mt-1.5">
                         <TrendingUp className="h-3 w-3 text-primary" />
-                        <span className="text-xs text-primary font-medium">
+                        <span className="text-xs text-primary font-semibold">
                           Margem {margem.toFixed(1)}% · Lucro unit. {fmt(lucroUnit)}
                         </span>
                       </div>
                     )}
                   </div>
-                  <div className="flex gap-1 ml-2">
+                  <div className="flex gap-1 ml-2 shrink-0">
                     <Button variant="ghost" size="icon" onClick={() => { setEditing(p); setOpen(true); }}>
                       <Edit2 className="h-4 w-4" />
                     </Button>

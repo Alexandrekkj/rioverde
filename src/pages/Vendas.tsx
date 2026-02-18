@@ -55,16 +55,11 @@ export default function Vendas() {
   const { data: vendas = [], isLoading } = useQuery({
     queryKey: ["vendas", filtroCliente, filtroForma, filtroInicio, filtroFim],
     queryFn: async () => {
-      let q = supabase
-        .from("vendas")
-        .select("*, clientes(nome)")
-        .order("data", { ascending: false });
-
+      let q = supabase.from("vendas").select("*, clientes(nome)").order("data", { ascending: false });
       if (filtroCliente) q = q.eq("cliente_id", filtroCliente);
       if (filtroForma && filtroForma !== "todas") q = q.eq("forma_pagamento", filtroForma);
       if (filtroInicio) q = q.gte("data", startOfDay(new Date(filtroInicio)).toISOString());
       if (filtroFim) q = q.lte("data", endOfDay(new Date(filtroFim)).toISOString());
-
       const { data, error } = await q;
       if (error) throw error;
       return data;
@@ -82,36 +77,36 @@ export default function Vendas() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <div className="flex items-center justify-between gap-3">
-        <h1 className="text-xl font-bold">Vendas</h1>
+        <h1 className="heading-gradient text-2xl md:text-3xl">Vendas</h1>
         <div className="flex gap-2">
           <Button size="sm" variant="outline" onClick={() => setShowFilters(!showFilters)}>
-            <Search className="mr-1 h-4 w-4" />{showFilters ? "Ocultar" : "Buscar"}
+            <Search className="mr-1.5 h-4 w-4" />{showFilters ? "Ocultar" : "Buscar"}
           </Button>
           <Button size="sm" asChild>
-            <Link to="/vendas/nova"><Plus className="mr-1 h-4 w-4" />Nova Venda</Link>
+            <Link to="/vendas/nova"><Plus className="mr-1.5 h-4 w-4" />Nova Venda</Link>
           </Button>
         </div>
       </div>
 
       {showFilters && (
-        <Card>
-          <CardContent className="p-3 space-y-3">
+        <Card className="card-interactive animate-slide-up">
+          <CardContent className="p-4 space-y-3">
             <div className="flex flex-wrap gap-3">
-              <div className="space-y-1 flex-1 min-w-[140px]">
-                <Label className="text-xs">Cliente</Label>
+              <div className="space-y-1.5 flex-1 min-w-[140px]">
+                <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Cliente</Label>
                 <Select value={filtroCliente} onValueChange={setFiltroCliente}>
-                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todos" /></SelectTrigger>
+                  <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Todos" /></SelectTrigger>
                   <SelectContent>
                     {clientes.map((c) => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-1 min-w-[120px]">
-                <Label className="text-xs">Pagamento</Label>
+              <div className="space-y-1.5 min-w-[120px]">
+                <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Pagamento</Label>
                 <Select value={filtroForma} onValueChange={setFiltroForma}>
-                  <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="todas">Todas</SelectItem>
                     <SelectItem value="dinheiro">Dinheiro</SelectItem>
@@ -120,13 +115,13 @@ export default function Vendas() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-1">
-                <Label className="text-xs">De</Label>
-                <Input type="date" className="h-8 w-36 text-xs" value={filtroInicio} onChange={(e) => setFiltroInicio(e.target.value)} />
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">De</Label>
+                <Input type="date" className="h-9 w-40" value={filtroInicio} onChange={(e) => setFiltroInicio(e.target.value)} />
               </div>
-              <div className="space-y-1">
-                <Label className="text-xs">Até</Label>
-                <Input type="date" className="h-8 w-36 text-xs" value={filtroFim} onChange={(e) => setFiltroFim(e.target.value)} />
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Até</Label>
+                <Input type="date" className="h-9 w-40" value={filtroFim} onChange={(e) => setFiltroFim(e.target.value)} />
               </div>
             </div>
             {hasFilters && (
@@ -139,21 +134,21 @@ export default function Vendas() {
       )}
 
       {isLoading ? (
-        <p className="text-sm text-muted-foreground">Carregando...</p>
+        <p className="text-sm text-muted-foreground py-8 text-center">Carregando...</p>
       ) : vendas.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Nenhuma venda encontrada.</p>
+        <p className="text-sm text-muted-foreground py-8 text-center">Nenhuma venda encontrada.</p>
       ) : (
         <div className="grid gap-2">
-          {vendas.map((v: any) => (
-            <Card key={v.id} className="hover:bg-accent/50 transition-colors cursor-pointer">
-              <CardContent className="flex items-center justify-between p-3">
+          {vendas.map((v: any, index: number) => (
+            <Card key={v.id} className="card-interactive animate-fade-in" style={{ animationDelay: `${Math.min(index * 30, 300)}ms` }}>
+              <CardContent className="flex items-center justify-between p-3 sm:p-4">
                 <Link to={`/vendas/${v.id}`} className="min-w-0 flex-1">
-                  <p className="font-medium truncate">{v.clientes?.nome ?? "Cliente removido"}</p>
-                  <div className="flex items-center gap-2 mt-0.5">
+                  <p className="font-semibold truncate">{v.clientes?.nome ?? "Cliente removido"}</p>
+                  <div className="flex items-center gap-2 mt-1">
                     <p className="text-xs text-muted-foreground">
                       {format(new Date(v.data), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
                     </p>
-                    <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-medium">
                       {FORMAS_LABELS[v.forma_pagamento] ?? v.forma_pagamento}
                       {v.forma_pagamento === "a_prazo" && v.prazo_dias ? ` ${v.prazo_dias}d` : ""}
                     </Badge>

@@ -23,13 +23,7 @@ const despesaSchema = z.object({
   observacoes: z.string().max(500, "Observações muito longas").optional().or(z.literal("")),
 });
 
-type Despesa = {
-  id: string;
-  tipo: string;
-  valor: number;
-  data: string;
-  observacoes: string | null;
-};
+type Despesa = { id: string; tipo: string; valor: number; data: string; observacoes: string | null };
 
 export default function Despesas() {
   const [open, setOpen] = useState(false);
@@ -39,115 +33,54 @@ export default function Despesas() {
 
   const { data: despesas = [], isLoading } = useQuery({
     queryKey: ["despesas"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("despesas")
-        .select("*")
-        .order("data", { ascending: false });
-      if (error) throw error;
-      return data;
-    },
+    queryFn: async () => { const { data, error } = await supabase.from("despesas").select("*").order("data", { ascending: false }); if (error) throw error; return data; },
   });
 
   const salvar = useMutation({
     mutationFn: async (form: FormData) => {
-      const raw = {
-        tipo: tipoSelecionado || (form.get("tipo") as string),
-        valor: parseFloat(form.get("valor") as string),
-        data: form.get("data") as string,
-        observacoes: (form.get("observacoes") as string).trim(),
-      };
-
+      const raw = { tipo: tipoSelecionado || (form.get("tipo") as string), valor: parseFloat(form.get("valor") as string), data: form.get("data") as string, observacoes: (form.get("observacoes") as string).trim() };
       const result = despesaSchema.safeParse(raw);
-      if (!result.success) {
-        throw new Error(result.error.errors[0].message);
-      }
-
-      const payload = {
-        tipo: result.data.tipo,
-        valor: result.data.valor,
-        data: new Date(result.data.data).toISOString(),
-        observacoes: result.data.observacoes || null,
-      };
-
-      if (editando) {
-        const { error } = await supabase.from("despesas").update(payload).eq("id", editando.id);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase.from("despesas").insert(payload);
-        if (error) throw error;
-      }
+      if (!result.success) throw new Error(result.error.errors[0].message);
+      const payload = { tipo: result.data.tipo, valor: result.data.valor, data: new Date(result.data.data).toISOString(), observacoes: result.data.observacoes || null };
+      if (editando) { const { error } = await supabase.from("despesas").update(payload).eq("id", editando.id); if (error) throw error; }
+      else { const { error } = await supabase.from("despesas").insert(payload); if (error) throw error; }
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["despesas"] });
-      toast.success(editando ? "Despesa atualizada!" : "Despesa registrada!");
-      setOpen(false);
-      setEditando(null);
-    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["despesas"] }); toast.success(editando ? "Despesa atualizada!" : "Despesa registrada!"); setOpen(false); setEditando(null); },
     onError: (e: Error) => toast.error(e.message || "Erro ao salvar despesa"),
   });
 
   const excluir = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from("despesas").delete().eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["despesas"] });
-      toast.success("Despesa excluída!");
-    },
+    mutationFn: async (id: string) => { const { error } = await supabase.from("despesas").delete().eq("id", id); if (error) throw error; },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["despesas"] }); toast.success("Despesa excluída!"); },
     onError: () => toast.error("Erro ao excluir despesa"),
   });
 
   const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-  function openEditar(d: Despesa) {
-    setEditando(d);
-    setTipoSelecionado(d.tipo);
-    setOpen(true);
-  }
-
-  function openNova() {
-    setEditando(null);
-    setTipoSelecionado("");
-    setOpen(true);
-  }
+  function openEditar(d: Despesa) { setEditando(d); setTipoSelecionado(d.tipo); setOpen(true); }
+  function openNova() { setEditando(null); setTipoSelecionado(""); setOpen(true); }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <div className="flex items-center justify-between gap-3">
-        <h1 className="text-xl font-bold">Despesas</h1>
+        <h1 className="heading-gradient text-2xl md:text-3xl">Despesas</h1>
         <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setEditando(null); }}>
           <DialogTrigger asChild>
-            <Button size="sm" onClick={openNova}><Plus className="mr-1 h-4 w-4" />Nova Despesa</Button>
+            <Button size="sm" onClick={openNova}><Plus className="mr-1.5 h-4 w-4" />Nova Despesa</Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader><DialogTitle>{editando ? "Editar Despesa" : "Nova Despesa"}</DialogTitle></DialogHeader>
-            <form
-              onSubmit={(e) => { e.preventDefault(); salvar.mutate(new FormData(e.currentTarget)); }}
-              className="space-y-3"
-            >
-              <div>
+            <form onSubmit={(e) => { e.preventDefault(); salvar.mutate(new FormData(e.currentTarget)); }} className="space-y-4">
+              <div className="space-y-1.5">
                 <Label>Tipo *</Label>
                 <Select value={tipoSelecionado} onValueChange={setTipoSelecionado}>
                   <SelectTrigger><SelectValue placeholder="Selecionar tipo" /></SelectTrigger>
-                  <SelectContent>
-                    {TIPOS_DESPESA.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-                  </SelectContent>
+                  <SelectContent>{TIPOS_DESPESA.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
-              <div>
-                <Label>Valor (R$) *</Label>
-                <Input name="valor" type="number" step="0.01" min={0.01} max={999999.99} required defaultValue={editando?.valor ?? ""} />
-              </div>
-              <div>
-                <Label>Data *</Label>
-                <Input name="data" type="datetime-local" required defaultValue={editando ? format(new Date(editando.data), "yyyy-MM-dd'T'HH:mm") : format(new Date(), "yyyy-MM-dd'T'HH:mm")} />
-              </div>
-              <div>
-                <Label>Observações</Label>
-                <Textarea name="observacoes" maxLength={500} defaultValue={editando?.observacoes ?? ""} />
-              </div>
+              <div className="space-y-1.5"><Label>Valor (R$) *</Label><Input name="valor" type="number" step="0.01" min={0.01} max={999999.99} required defaultValue={editando?.valor ?? ""} /></div>
+              <div className="space-y-1.5"><Label>Data *</Label><Input name="data" type="datetime-local" required defaultValue={editando ? format(new Date(editando.data), "yyyy-MM-dd'T'HH:mm") : format(new Date(), "yyyy-MM-dd'T'HH:mm")} /></div>
+              <div className="space-y-1.5"><Label>Observações</Label><Textarea name="observacoes" maxLength={500} defaultValue={editando?.observacoes ?? ""} /></div>
               <Button type="submit" className="w-full" disabled={salvar.isPending}>Salvar</Button>
             </form>
           </DialogContent>
@@ -155,28 +88,30 @@ export default function Despesas() {
       </div>
 
       {isLoading ? (
-        <p className="text-sm text-muted-foreground">Carregando...</p>
+        <p className="text-sm text-muted-foreground py-8 text-center">Carregando...</p>
       ) : despesas.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Nenhuma despesa registrada.</p>
+        <p className="text-sm text-muted-foreground py-8 text-center">Nenhuma despesa registrada.</p>
       ) : (
         <div className="grid gap-2">
-          {despesas.map((d: any) => (
-            <Card key={d.id}>
-              <CardContent className="flex items-center justify-between p-3">
+          {despesas.map((d: any, index: number) => (
+            <Card key={d.id} className="card-interactive animate-fade-in" style={{ animationDelay: `${Math.min(index * 30, 300)}ms` }}>
+              <CardContent className="flex items-center justify-between p-3 sm:p-4">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <Receipt className="h-4 w-4 text-muted-foreground shrink-0" />
-                    <p className="font-medium truncate">{d.tipo}</p>
+                    <div className="p-1.5 rounded-lg bg-destructive/10">
+                      <Receipt className="h-4 w-4 text-destructive shrink-0" />
+                    </div>
+                    <p className="font-semibold truncate">{d.tipo}</p>
                   </div>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-muted-foreground mt-1 ml-9">
                     {format(new Date(d.data), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
                   </p>
-                  {d.observacoes && <p className="text-xs text-muted-foreground mt-0.5 truncate">{d.observacoes}</p>}
+                  {d.observacoes && <p className="text-xs text-muted-foreground mt-0.5 ml-9 truncate">{d.observacoes}</p>}
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   <span className="text-sm font-bold text-destructive">{fmt(d.valor)}</span>
-                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEditar(d)}><Pencil className="h-3.5 w-3.5" /></Button>
-                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => excluir.mutate(d.id)}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button>
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditar(d)}><Pencil className="h-3.5 w-3.5" /></Button>
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => excluir.mutate(d.id)}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button>
                 </div>
               </CardContent>
             </Card>

@@ -4,64 +4,64 @@
 
 @layer base {
   :root {
-    --background: 0 0% 96%;
-    --foreground: 150 30% 10%;
+    --background: 140 20% 97%;
+    --foreground: 150 25% 8%;
     --card: 0 0% 100%;
-    --card-foreground: 150 30% 10%;
+    --card-foreground: 150 25% 8%;
     --popover: 0 0% 100%;
-    --popover-foreground: 150 30% 10%;
-    --primary: 145 65% 30%;
+    --popover-foreground: 150 25% 8%;
+    --primary: 160 84% 29%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 0 70% 45%;
-    --secondary-foreground: 0 0% 100%;
-    --muted: 150 10% 90%;
-    --muted-foreground: 150 10% 45%;
-    --accent: 145 30% 90%;
-    --accent-foreground: 145 65% 20%;
+    --secondary: 155 20% 92%;
+    --secondary-foreground: 155 25% 20%;
+    --muted: 150 15% 93%;
+    --muted-foreground: 150 10% 42%;
+    --accent: 158 30% 92%;
+    --accent-foreground: 158 60% 22%;
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
-    --border: 150 10% 85%;
-    --input: 150 10% 85%;
-    --ring: 145 65% 30%;
+    --border: 150 15% 88%;
+    --input: 150 15% 88%;
+    --ring: 160 84% 29%;
     --radius: 0.75rem;
-    --sidebar-background: 145 40% 18%;
-    --sidebar-foreground: 0 0% 95%;
-    --sidebar-primary: 0 70% 45%;
+    --sidebar-background: 160 50% 12%;
+    --sidebar-foreground: 0 0% 96%;
+    --sidebar-primary: 160 84% 39%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 145 35% 25%;
-    --sidebar-accent-foreground: 0 0% 95%;
-    --sidebar-border: 145 30% 22%;
-    --sidebar-ring: 0 70% 45%;
+    --sidebar-accent: 160 40% 18%;
+    --sidebar-accent-foreground: 0 0% 96%;
+    --sidebar-border: 160 30% 16%;
+    --sidebar-ring: 160 84% 39%;
   }
 
   .dark {
-    --background: 150 15% 7%;
-    --foreground: 150 10% 90%;
-    --card: 150 15% 10%;
-    --card-foreground: 150 10% 90%;
-    --popover: 150 15% 10%;
-    --popover-foreground: 150 10% 90%;
-    --primary: 145 65% 35%;
+    --background: 160 20% 5%;
+    --foreground: 150 10% 93%;
+    --card: 160 18% 8%;
+    --card-foreground: 150 10% 93%;
+    --popover: 160 18% 8%;
+    --popover-foreground: 150 10% 93%;
+    --primary: 160 84% 39%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 0 65% 42%;
-    --secondary-foreground: 0 0% 100%;
-    --muted: 150 15% 15%;
+    --secondary: 160 15% 14%;
+    --secondary-foreground: 155 15% 85%;
+    --muted: 160 15% 12%;
     --muted-foreground: 150 10% 55%;
-    --accent: 145 30% 18%;
-    --accent-foreground: 145 50% 65%;
+    --accent: 160 25% 14%;
+    --accent-foreground: 158 50% 65%;
     --destructive: 0 62% 40%;
     --destructive-foreground: 0 0% 100%;
-    --border: 150 15% 18%;
-    --input: 150 15% 18%;
-    --ring: 145 65% 35%;
-    --sidebar-background: 145 40% 10%;
-    --sidebar-foreground: 0 0% 90%;
-    --sidebar-primary: 0 65% 42%;
+    --border: 160 15% 15%;
+    --input: 160 15% 15%;
+    --ring: 160 84% 39%;
+    --sidebar-background: 160 40% 6%;
+    --sidebar-foreground: 0 0% 92%;
+    --sidebar-primary: 160 84% 39%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 145 30% 15%;
-    --sidebar-accent-foreground: 0 0% 90%;
-    --sidebar-border: 145 25% 14%;
-    --sidebar-ring: 0 65% 42%;
+    --sidebar-accent: 160 30% 12%;
+    --sidebar-accent-foreground: 0 0% 92%;
+    --sidebar-border: 160 25% 10%;
+    --sidebar-ring: 160 84% 39%;
   }
 }
 
@@ -71,5 +71,216 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
+}
+
+/* ─── Advanced Animations ─────────────────────────────────── */
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+@keyframes glow-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(5, 150, 105, 0); }
+  50% { box-shadow: 0 0 20px 4px rgba(5, 150, 105, 0.15); }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.4s ease-out forwards;
+}
+
+.animate-slide-up {
+  animation: slide-up 0.5s ease-out forwards;
+}
+
+.animate-scale-in {
+  animation: scale-in 0.4s ease-out forwards;
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+.animate-glow-pulse {
+  animation: glow-pulse 2.5s ease-in-out infinite;
+}
+
+/* ─── Page transition wrapper ────────────────────────────── */
+
+.page-enter {
+  animation: fade-in 0.35s ease-out both;
+}
+
+/* ─── Card hover effects ─────────────────────────────────── */
+
+.card-interactive {
+  @apply transition-all duration-300 ease-out;
+}
+
+.card-interactive:hover {
+  @apply -translate-y-0.5 shadow-lg;
+  border-color: hsl(var(--primary) / 0.3);
+}
+
+/* ─── KPI card decorative bg ─────────────────────────────── */
+
+.kpi-card {
+  @apply relative overflow-hidden transition-all duration-300;
+}
+
+.kpi-card::before {
+  content: '';
+  @apply absolute top-0 right-0 w-24 h-24 rounded-full;
+  background: hsl(var(--primary) / 0.06);
+  transform: translate(30%, -30%);
+  transition: transform 0.4s ease-out;
+}
+
+.kpi-card:hover::before {
+  transform: translate(20%, -20%) scale(1.3);
+}
+
+/* ─── Button shimmer effect ──────────────────────────────── */
+
+.btn-shimmer {
+  @apply relative overflow-hidden;
+}
+
+.btn-shimmer::after {
+  content: '';
+  @apply absolute inset-0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+  background-size: 200% 100%;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.btn-shimmer:hover::after {
+  opacity: 1;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+/* ─── Gradient heading ───────────────────────────────────── */
+
+.heading-gradient {
+  @apply font-bold bg-clip-text text-transparent;
+  background-image: linear-gradient(135deg, hsl(160 84% 39%), hsl(170 60% 50%));
+}
+
+.dark .heading-gradient {
+  background-image: linear-gradient(135deg, hsl(160 84% 45%), hsl(170 70% 60%));
+}
+
+/* ─── Sidebar animations ─────────────────────────────────── */
+
+.sidebar-link {
+  @apply relative transition-all duration-200 ease-out;
+}
+
+.sidebar-link::before {
+  content: '';
+  @apply absolute left-0 top-1/2 h-0 w-[3px] rounded-r-full;
+  background: hsl(var(--primary));
+  transform: translateY(-50%);
+  transition: height 0.2s ease-out;
+}
+
+.sidebar-link:hover::before,
+.sidebar-link.active::before {
+  @apply h-6;
+}
+
+/* ─── Mobile nav ─────────────────────────────────────────── */
+
+.mobile-nav {
+  @apply backdrop-blur-xl border-t;
+  background: hsl(var(--card) / 0.85);
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+.mobile-nav-item {
+  @apply transition-all duration-200;
+}
+
+.mobile-nav-item:active {
+  @apply scale-90;
+}
+
+.mobile-nav-item.active {
+  @apply text-primary;
+}
+
+.mobile-nav-item.active .nav-dot {
+  @apply w-1 h-1 rounded-full bg-primary mx-auto mt-0.5;
+}
+
+/* ─── Scrollbar customization ────────────────────────────── */
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply rounded-full;
+  background: hsl(var(--muted-foreground) / 0.2);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.35);
+}
+
+/* ─── Touch-friendly targets ─────────────────────────────── */
+
+@media (max-width: 768px) {
+  button, a, [role="button"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  input, select, textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* ─── Smooth scrolling ───────────────────────────────────── */
+
+html {
+  scroll-behavior: smooth;
+}
+
+/* ─── Focus ring for accessibility ───────────────────────── */
+
+:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+  border-radius: 4px;
 }
