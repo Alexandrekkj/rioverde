@@ -232,24 +232,28 @@ function calcFinanceiro(vendas: any[], itens: any[], despesas: any[]) {
   // Desconto total = diferença entre receita teórica e receita real
   const descontoTotal = Math.max(0, receitaTeorica - receita);
 
-  // LUCRO BRUTO = venda cheia (receita teórica) − custo de reposição
-  const lucroBruto = receitaTeorica - custo;
+  // LUCRO BRUTO REAL = Receita Real - Custo de Reposição
+  // (O desconto já está descontado na receita real, não subtrair novamente)
+  const lucroBruto = receita - custo;
 
-  // LUCRO LÍQUIDO = receita real (após descontos) − custo − despesas
+  // Lucro Bruto Teórico (se vendesse tudo a preço cheio)
+  const lucroBrutoTeorico = receitaTeorica - custo;
+
+  // LUCRO LÍQUIDO = Lucro Bruto Real - Despesas Operacionais
   const totalDespesas = despesas.reduce((s, d) => s + (d.valor ?? 0), 0);
-  const lucroLiquido = receita - custo - totalDespesas;
+  const lucroLiquido = lucroBruto - totalDespesas;
 
-  // Margem bruta = sobre receita teórica (venda cheia)
-  const margemBruta = receitaTeorica > 0 ? (lucroBruto / receitaTeorica) * 100 : 0;
+  // Margem bruta real = (Lucro Bruto Real / Receita Real) * 100
+  const margemBruta = receita > 0 ? (lucroBruto / receita) * 100 : 0;
 
-  // Margem líquida = sobre receita real (após descontos)
+  // Margem líquida = (Lucro Líquido / Receita Real) * 100
   const margemLiquida = receita > 0 ? (lucroLiquido / receita) * 100 : 0;
 
-  // Margem teórica = mesma que bruta (usada para comparação no CardDescontos)
-  const margemTeorica = margemBruta;
+  // Margem teórica = (Lucro Bruto Teórico / Receita Teórica) * 100
+  const margemTeorica = receitaTeorica > 0 ? (lucroBrutoTeorico / receitaTeorica) * 100 : 0;
 
-  // Impacto % dos descontos sobre o lucro bruto
-  const impactoDesconto = lucroBruto > 0 ? (descontoTotal / lucroBruto) * 100 : 0;
+  // Impacto % dos descontos sobre o lucro bruto teórico (quanto deixou de ganhar)
+  const impactoDesconto = lucroBrutoTeorico > 0 ? (descontoTotal / lucroBrutoTeorico) * 100 : 0;
 
   const qtdVendas = vendas.length;
   const ticketMedio = qtdVendas > 0 ? receita / qtdVendas : 0;
@@ -258,7 +262,7 @@ function calcFinanceiro(vendas: any[], itens: any[], despesas: any[]) {
     receita,
     custo,
     lucroBruto,
-    lucroBrutoTeorico: lucroBruto, // mesmo valor, mantido para compatibilidade
+    lucroBrutoTeorico,
     totalDespesas,
     lucroLiquido,
     margemBruta,
