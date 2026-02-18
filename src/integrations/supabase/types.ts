@@ -126,6 +126,7 @@ export type Database = {
           id: string
           nome: string
           preco: number
+          preco_custo: number
         }
         Insert: {
           categoria?: string | null
@@ -133,6 +134,7 @@ export type Database = {
           id?: string
           nome: string
           preco?: number
+          preco_custo?: number
         }
         Update: {
           categoria?: string | null
@@ -140,6 +142,7 @@ export type Database = {
           id?: string
           nome?: string
           preco?: number
+          preco_custo?: number
         }
         Relationships: []
       }

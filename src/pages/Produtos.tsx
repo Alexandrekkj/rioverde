@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Plus, Search, Edit2, Trash2 } from "lucide-react";
+import { Plus, Search, Edit2, Trash2, TrendingUp } from "lucide-react";
 import { toast } from "sonner";
 import type { Tables, TablesInsert } from "@/integrations/supabase/types";
 
@@ -66,14 +66,22 @@ export default function Produtos() {
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
+    const precoCusto = parseFloat(fd.get("preco_custo") as string) || 0;
+    const precoRevenda = parseFloat(fd.get("preco") as string) || 0;
     upsert.mutate({
       nome: fd.get("nome") as string,
       categoria: (fd.get("categoria") as string) || null,
-      preco: parseFloat(fd.get("preco") as string) || 0,
+      preco_custo: precoCusto,
+      preco: precoRevenda,
     });
   }
 
   const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+  const calcMargem = (custo: number, venda: number) => {
+    if (venda <= 0) return 0;
+    return ((venda - custo) / venda) * 100;
+  };
 
   return (
     <div className="space-y-4">
@@ -88,9 +96,42 @@ export default function Produtos() {
               <DialogTitle>{editing ? "Editar Produto" : "Novo Produto"}</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-3">
-              <div><Label htmlFor="nome">Nome *</Label><Input id="nome" name="nome" required defaultValue={editing?.nome ?? ""} /></div>
-              <div><Label htmlFor="categoria">Categoria</Label><Input id="categoria" name="categoria" placeholder="Ex: bebidas, laticínios" defaultValue={editing?.categoria ?? ""} /></div>
-              <div><Label htmlFor="preco">Preço (R$)</Label><Input id="preco" name="preco" type="number" step="0.01" min="0" defaultValue={editing?.preco ?? ""} /></div>
+              <div>
+                <Label htmlFor="nome">Nome *</Label>
+                <Input id="nome" name="nome" required defaultValue={editing?.nome ?? ""} />
+              </div>
+              <div>
+                <Label htmlFor="categoria">Categoria</Label>
+                <Input id="categoria" name="categoria" placeholder="Ex: bebidas, laticínios" defaultValue={editing?.categoria ?? ""} />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label htmlFor="preco_custo">Preço de Custo (R$)</Label>
+                  <Input
+                    id="preco_custo"
+                    name="preco_custo"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="0,00"
+                    defaultValue={editing?.preco_custo ?? ""}
+                  />
+                  <p className="mt-1 text-xs text-muted-foreground">Quanto você paga</p>
+                </div>
+                <div>
+                  <Label htmlFor="preco">Preço de Revenda (R$)</Label>
+                  <Input
+                    id="preco"
+                    name="preco"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="0,00"
+                    defaultValue={editing?.preco ?? ""}
+                  />
+                  <p className="mt-1 text-xs text-muted-foreground">Quanto você vende</p>
+                </div>
+              </div>
               <Button type="submit" className="w-full" disabled={upsert.isPending}>Salvar</Button>
             </form>
           </DialogContent>
@@ -108,27 +149,42 @@ export default function Produtos() {
         <p className="text-sm text-muted-foreground">Nenhum produto encontrado.</p>
       ) : (
         <div className="grid gap-2">
-          {filtered.map((p) => (
-            <Card key={p.id}>
-              <CardContent className="flex items-center justify-between p-3">
-                <div className="min-w-0">
-                  <p className="font-medium truncate">{p.nome}</p>
-                  <div className="flex gap-2 text-xs text-muted-foreground">
-                    {p.categoria && <span className="rounded bg-accent px-1.5 py-0.5 text-accent-foreground">{p.categoria}</span>}
-                    <span className="font-semibold text-foreground">{fmt(p.preco)}</span>
+          {filtered.map((p) => {
+            const margem = calcMargem(p.preco_custo, p.preco);
+            const lucroUnit = p.preco - p.preco_custo;
+            return (
+              <Card key={p.id}>
+                <CardContent className="flex items-center justify-between p-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium truncate">{p.nome}</p>
+                    <div className="flex flex-wrap gap-2 text-xs text-muted-foreground mt-0.5">
+                      {p.categoria && (
+                        <span className="rounded bg-accent px-1.5 py-0.5 text-accent-foreground">{p.categoria}</span>
+                      )}
+                      <span className="text-muted-foreground">Custo: <span className="font-medium">{fmt(p.preco_custo)}</span></span>
+                      <span className="text-foreground font-semibold">Revenda: {fmt(p.preco)}</span>
+                    </div>
+                    {p.preco > 0 && (
+                      <div className="flex items-center gap-1.5 mt-1">
+                        <TrendingUp className="h-3 w-3 text-primary" />
+                        <span className="text-xs text-primary font-medium">
+                          Margem {margem.toFixed(1)}% · Lucro unit. {fmt(lucroUnit)}
+                        </span>
+                      </div>
+                    )}
                   </div>
-                </div>
-                <div className="flex gap-1 ml-2">
-                  <Button variant="ghost" size="icon" onClick={() => { setEditing(p); setOpen(true); }}>
-                    <Edit2 className="h-4 w-4" />
-                  </Button>
-                  <Button variant="ghost" size="icon" onClick={() => deleteMut.mutate(p.id)}>
-                    <Trash2 className="h-4 w-4 text-destructive" />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                  <div className="flex gap-1 ml-2">
+                    <Button variant="ghost" size="icon" onClick={() => { setEditing(p); setOpen(true); }}>
+                      <Edit2 className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" onClick={() => deleteMut.mutate(p.id)}>
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
     </div>
