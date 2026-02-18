@@ -198,19 +198,17 @@ function useDespesasPeriodo(inicio: Date, fim: Date, queryKey: string) {
 
 // ─── Cálculos financeiros ─────────────────────────────────────────────────────
 //
-// Lógica de desconto:
-//   • O desconto NUNCA abate o custo. Ele reduz a RECEITA real da venda.
-//   • Receita real por item  = preco_unitario × qtd − desconto_item
-//   • Desconto geral da venda é abatido do total já registrado (campo `total` já tem desconto_geral aplicado pela tela de venda)
-//   • Receita sem desconto (teórica) = preco de tabela × qtd (usando produtos.preco)
-//   • Desconto total = receita teórica − receita real
-//   • Lucro bruto real = receita real − custo de reposição
-//   • Margem teórica = (receita teórica − custo) / receita teórica
-//   • Margem real = lucro bruto real / receita real
-//   • Impacto desconto = desconto total / lucro bruto teórico
+// Definições:
+//   • Receita teórica = preço de tabela × quantidade (sem nenhum desconto)
+//   • Receita real    = soma dos totais gravados no banco (já com descontos aplicados)
+//   • Desconto total  = receita teórica − receita real
+//   • Custo           = preco_custo × quantidade (nunca afetado por desconto)
+//
+//   • LUCRO BRUTO     = receita teórica (venda cheia) − custo de reposição
+//   • LUCRO LÍQUIDO   = receita real (após descontos) − custo − despesas
 
 function calcFinanceiro(vendas: any[], itens: any[], despesas: any[]) {
-  // Receita real = soma dos totais já gravados no banco (após desconto_geral)
+  // Receita real = soma dos totais já gravados no banco (após descontos)
   const receita = vendas.reduce((s, v) => s + (v.total ?? 0), 0);
 
   // Custo de reposição (não é afetado por desconto)
@@ -231,25 +229,27 @@ function calcFinanceiro(vendas: any[], itens: any[], despesas: any[]) {
   // Desconto geral das vendas
   const descontoGeral = vendas.reduce((s, v) => s + (v.desconto_geral ?? 0), 0);
 
-  // Desconto total = diferença entre receita teórica e receita real (mais robusto)
+  // Desconto total = diferença entre receita teórica e receita real
   const descontoTotal = Math.max(0, receitaTeorica - receita);
 
-  // Lucro bruto real (receita após descontos − custo)
-  const lucroBruto = receita - custo;
+  // LUCRO BRUTO = venda cheia (receita teórica) − custo de reposição
+  const lucroBruto = receitaTeorica - custo;
 
-  // Lucro bruto teórico (sem desconto)
-  const lucroBrutoTeorico = receitaTeorica - custo;
-
+  // LUCRO LÍQUIDO = receita real (após descontos) − custo − despesas
   const totalDespesas = despesas.reduce((s, d) => s + (d.valor ?? 0), 0);
-  const lucroLiquido = lucroBruto - totalDespesas;
+  const lucroLiquido = receita - custo - totalDespesas;
 
-  // Margens
-  const margemBruta = receita > 0 ? (lucroBruto / receita) * 100 : 0;
+  // Margem bruta = sobre receita teórica (venda cheia)
+  const margemBruta = receitaTeorica > 0 ? (lucroBruto / receitaTeorica) * 100 : 0;
+
+  // Margem líquida = sobre receita real (após descontos)
   const margemLiquida = receita > 0 ? (lucroLiquido / receita) * 100 : 0;
-  const margemTeorica = receitaTeorica > 0 ? (lucroBrutoTeorico / receitaTeorica) * 100 : 0;
 
-  // Impacto % dos descontos sobre o lucro bruto teórico
-  const impactoDesconto = lucroBrutoTeorico > 0 ? (descontoTotal / lucroBrutoTeorico) * 100 : 0;
+  // Margem teórica = mesma que bruta (usada para comparação no CardDescontos)
+  const margemTeorica = margemBruta;
+
+  // Impacto % dos descontos sobre o lucro bruto
+  const impactoDesconto = lucroBruto > 0 ? (descontoTotal / lucroBruto) * 100 : 0;
 
   const qtdVendas = vendas.length;
   const ticketMedio = qtdVendas > 0 ? receita / qtdVendas : 0;
@@ -258,7 +258,7 @@ function calcFinanceiro(vendas: any[], itens: any[], despesas: any[]) {
     receita,
     custo,
     lucroBruto,
-    lucroBrutoTeorico,
+    lucroBrutoTeorico: lucroBruto, // mesmo valor, mantido para compatibilidade
     totalDespesas,
     lucroLiquido,
     margemBruta,
