@@ -39,7 +39,7 @@ export default function Login() {
           <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 mb-4 animate-float">
             <Leaf className="h-8 w-8 text-primary" />
           </div>
-          <h2 className="heading-gradient text-2xl">RioVerde</h2>
+          <h2 className="heading-gradient text-2xl">Rio Verde</h2>
           <p className="text-xs text-muted-foreground mt-1 font-medium uppercase tracking-widest">Sistema de Vendas</p>
         </div>
 
