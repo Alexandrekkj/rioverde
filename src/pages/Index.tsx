@@ -76,12 +76,12 @@ export default function Index() {
   const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
   const cards = [
-    { label: "Vendas no Período", value: fmt(stats.totalMes), icon: TrendingUp },
-    { label: "Qtd. Vendas", value: String(stats.qtdVendas), icon: ShoppingCart },
-    { label: "Ticket Médio", value: fmt(stats.ticketMedio), icon: Sparkles },
-    { label: "Clientes Ativos", value: String(stats.clientesAtivos), icon: Users },
-    { label: "Clientes", value: String(totalClientes), icon: Users },
-    { label: "Produtos", value: String(totalProdutos), icon: Package },
+    { label: "Vendas no Período", value: fmt(stats.totalMes), icon: TrendingUp, color: "text-primary" },
+    { label: "Qtd. Vendas", value: String(stats.qtdVendas), icon: ShoppingCart, color: "text-blue-600" },
+    { label: "Ticket Médio", value: fmt(stats.ticketMedio), icon: Sparkles, color: "text-amber-600" },
+    { label: "Clientes Ativos", value: String(stats.clientesAtivos), icon: Users, color: "text-violet-600" },
+    { label: "Clientes", value: String(totalClientes), icon: Users, color: "text-rose-600" },
+    { label: "Produtos", value: String(totalProdutos), icon: Package, color: "text-cyan-600" },
   ];
 
   const chartConfig = {
@@ -90,52 +90,51 @@ export default function Index() {
 
   return (
     <div className="space-y-6">
-      <h1 className="heading-gradient text-2xl md:text-3xl">Dashboard</h1>
+      {/* Header */}
+      <div>
+        <h1 className="text-xl font-semibold text-foreground">Dashboard</h1>
+      </div>
 
-      {/* Filtro de período */}
-      <Card className="card-interactive">
-        <CardContent className="pt-5 pb-5">
-          <div className="flex flex-wrap items-end gap-4">
-            <div className="space-y-1.5 flex-1 min-w-[140px]">
-              <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Data Inicial</Label>
-              <Input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="h-10 transition-all duration-200 focus:ring-primary/20"
-              />
-            </div>
-            <div className="space-y-1.5 flex-1 min-w-[140px]">
-              <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Data Final</Label>
-              <Input
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="h-10 transition-all duration-200 focus:ring-primary/20"
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Date filter */}
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="space-y-1 min-w-[140px]">
+          <Label className="text-xs font-medium text-muted-foreground">De</Label>
+          <Input
+            type="date"
+            value={startDate}
+            onChange={(e) => setStartDate(e.target.value)}
+            className="h-9 text-sm"
+          />
+        </div>
+        <div className="space-y-1 min-w-[140px]">
+          <Label className="text-xs font-medium text-muted-foreground">Até</Label>
+          <Input
+            type="date"
+            value={endDate}
+            onChange={(e) => setEndDate(e.target.value)}
+            className="h-9 text-sm"
+          />
+        </div>
+      </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         {cards.map((c, index) => (
           <Card
             key={c.label}
-            className="kpi-card card-interactive group cursor-default animate-fade-in"
-            style={{ animationDelay: `${index * 60}ms` }}
+            className="card-interactive animate-fade-in"
+            style={{ animationDelay: `${index * 50}ms` }}
           >
-            <CardContent className="p-4 sm:p-5">
-              <div className="flex items-start justify-between mb-3">
-                <div className="p-2.5 rounded-xl bg-primary/10 group-hover:bg-primary/20 transition-colors duration-300">
-                  <c.icon className="h-5 w-5 text-primary" />
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="p-1.5 rounded-md bg-muted">
+                  <c.icon className={`h-4 w-4 ${c.color}`} />
                 </div>
               </div>
-              <div className="text-xl sm:text-2xl font-bold text-foreground mb-1 tracking-tight">
+              <div className="text-xl font-bold text-foreground tracking-tight">
                 {c.value}
               </div>
-              <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+              <div className="text-[11px] font-medium text-muted-foreground mt-0.5">
                 {c.label}
               </div>
             </CardContent>
@@ -143,22 +142,22 @@ export default function Index() {
         ))}
       </div>
 
-      {/* Gráfico */}
-      <Card className="card-interactive">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base font-semibold">Evolução de Vendas</CardTitle>
+      {/* Chart */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-medium text-foreground">Vendas por Dia</CardTitle>
         </CardHeader>
         <CardContent>
           {chartData.length > 0 ? (
-            <ChartContainer config={chartConfig} className="h-[280px] w-full">
+            <ChartContainer config={chartConfig} className="h-[260px] w-full">
               <AreaChart data={chartData}>
                 <defs>
                   <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
+                    <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.2} />
                     <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" strokeOpacity={0.5} vertical={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
                 <XAxis dataKey="date" fontSize={11} tickLine={false} axisLine={false} tick={{ fill: 'hsl(var(--muted-foreground))' }} />
                 <YAxis fontSize={11} tickLine={false} axisLine={false} tickFormatter={(v) => `R$${v}`} tick={{ fill: 'hsl(var(--muted-foreground))' }} />
                 <ChartTooltip content={<ChartTooltipContent />} />
@@ -166,7 +165,7 @@ export default function Index() {
                   type="monotone"
                   dataKey="total"
                   stroke="hsl(var(--primary))"
-                  strokeWidth={2.5}
+                  strokeWidth={2}
                   fill="url(#colorTotal)"
                 />
               </AreaChart>

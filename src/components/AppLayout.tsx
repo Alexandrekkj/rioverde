@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { LayoutDashboard, ShoppingCart, Users, Package, Receipt, TrendingUp, Leaf } from "lucide-react";
+import { LayoutDashboard, ShoppingCart, Users, Package, Receipt, TrendingUp, Leaf, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
@@ -17,22 +17,19 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen flex-col md:flex-row bg-background">
       {/* Desktop sidebar */}
-      <aside className="hidden md:flex md:w-60 md:flex-col md:border-r border-border bg-sidebar text-sidebar-foreground">
+      <aside className="hidden md:flex md:w-56 md:flex-col border-r border-border bg-sidebar">
         {/* Logo */}
-        <div className="p-5 pb-6">
+        <div className="p-5 pb-5">
           <Link to="/" className="flex items-center gap-2.5 group">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/20 group-hover:bg-primary/30 transition-colors duration-300">
-              <Leaf className="h-5 w-5 text-primary" />
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+              <Leaf className="h-4 w-4" />
             </div>
-            <div>
-              <h1 className="text-base font-bold tracking-tight text-sidebar-foreground">Rio Verde</h1>
-              <p className="text-[10px] font-medium text-sidebar-foreground/50 uppercase tracking-widest">Vendas</p>
-            </div>
+            <span className="text-base font-semibold text-sidebar-foreground tracking-tight">Rio Verde</span>
           </Link>
         </div>
 
         {/* Nav */}
-        <nav className="flex flex-1 flex-col gap-1 px-3">
+        <nav className="flex flex-1 flex-col gap-0.5 px-3">
           {navItems.map((item) => {
             const isActive = pathname === item.to;
             return (
@@ -40,22 +37,23 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 key={item.to}
                 to={item.to}
                 className={cn(
-                  "sidebar-link flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
+                  "sidebar-link flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium transition-all duration-150",
                   isActive
-                    ? "active bg-sidebar-accent text-primary shadow-sm"
-                    : "text-sidebar-foreground/70 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
+                    ? "active bg-primary/10 text-primary"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
                 )}
               >
-                <item.icon className={cn("h-[18px] w-[18px] transition-colors", isActive ? "text-primary" : "")} />
-                {item.label}
+                <item.icon className="h-4 w-4 flex-shrink-0" />
+                <span className="flex-1">{item.label}</span>
+                {isActive && <ChevronRight className="h-3.5 w-3.5 text-primary/50" />}
               </Link>
             );
           })}
         </nav>
 
         {/* Footer */}
-        <div className="p-4 border-t border-sidebar-border">
-          <p className="text-[10px] text-sidebar-foreground/40 text-center uppercase tracking-widest">
+        <div className="p-4 border-t border-border">
+          <p className="text-[10px] text-muted-foreground/50 text-center uppercase tracking-widest">
             © 2026 Rio Verde
           </p>
         </div>
@@ -63,7 +61,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
       {/* Main content */}
       <main className="flex-1 pb-24 md:pb-0 overflow-x-hidden">
-        <div className="mx-auto max-w-4xl p-4 md:p-6">
+        <div className="mx-auto max-w-5xl p-4 md:p-6 lg:p-8">
           <div className="page-enter">
             {children}
           </div>
@@ -72,25 +70,35 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
       {/* Mobile bottom nav */}
       <nav className="mobile-nav fixed bottom-0 left-0 right-0 z-50 flex md:hidden">
-        {navItems.map((item) => {
+        {navItems.slice(0, 5).map((item) => {
           const isActive = pathname === item.to;
           return (
             <Link
               key={item.to}
               to={item.to}
               className={cn(
-                "mobile-nav-item flex flex-1 flex-col items-center gap-0.5 py-2.5 text-[10px] font-semibold tracking-wide",
-                isActive
-                  ? "active text-primary"
-                  : "text-muted-foreground"
+                "mobile-nav-item flex flex-1 flex-col items-center gap-0.5 py-2.5 text-[10px] font-medium",
+                isActive ? "active text-primary" : "text-muted-foreground"
               )}
             >
-              <item.icon className={cn("h-5 w-5 transition-transform duration-200", isActive && "scale-110")} />
+              <item.icon className={cn("h-5 w-5", isActive && "scale-110")} />
               <span>{item.label}</span>
               {isActive && <div className="nav-dot"></div>}
             </Link>
           );
         })}
+        {/* More button for remaining items */}
+        <Link
+          to="/dashboard-estrategico"
+          className={cn(
+            "mobile-nav-item flex flex-1 flex-col items-center gap-0.5 py-2.5 text-[10px] font-medium",
+            pathname === "/dashboard-estrategico" ? "active text-primary" : "text-muted-foreground"
+          )}
+        >
+          <TrendingUp className={cn("h-5 w-5", pathname === "/dashboard-estrategico" && "scale-110")} />
+          <span>Mais</span>
+          {pathname === "/dashboard-estrategico" && <div className="nav-dot"></div>}
+        </Link>
       </nav>
     </div>
   );
