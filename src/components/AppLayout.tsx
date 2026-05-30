@@ -24,7 +24,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
               <Leaf className="h-4 w-4" />
             </div>
-            <span className="text-base font-semibold text-sidebar-foreground tracking-tight">Rio Verde</span>
+            <span className="text-base font-semibold text-sidebar-foreground tracking-tight">River Green</span>
           </Link>
         </div>
 
@@ -54,7 +54,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         {/* Footer */}
         <div className="p-4 border-t border-border">
           <p className="text-[10px] text-muted-foreground/50 text-center uppercase tracking-widest">
-            © 2026 Rio Verde
+            © 2026 River Green
           </p>
         </div>
       </aside>
