@@ -1,5 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ShoppingCart, Users, Package, TrendingUp, Sparkles } from "lucide-react";
+import { ShoppingCart, TrendingUp, TrendingDown } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useState, useMemo } from "react";
@@ -31,31 +31,25 @@ export default function Index() {
     },
   });
 
-  const { data: totalClientes = 0 } = useQuery({
-    queryKey: ["dashboard-clientes-count"],
+  const { data: despesas = [] } = useQuery({
+    queryKey: ["dashboard-despesas", startDate, endDate],
     queryFn: async () => {
-      const { count, error } = await supabase.from("clientes").select("id", { count: "exact", head: true });
+      const { data, error } = await supabase
+        .from("despesas")
+        .select("valor, data")
+        .gte("data", startOfDay(new Date(startDate)).toISOString())
+        .lte("data", endOfDay(new Date(endDate)).toISOString());
       if (error) throw error;
-      return count ?? 0;
-    },
-  });
-
-  const { data: totalProdutos = 0 } = useQuery({
-    queryKey: ["dashboard-produtos-count"],
-    queryFn: async () => {
-      const { count, error } = await supabase.from("produtos").select("id", { count: "exact", head: true });
-      if (error) throw error;
-      return count ?? 0;
+      return data ?? [];
     },
   });
 
   const stats = useMemo(() => {
     const totalMes = vendas.reduce((s, v) => s + v.total, 0);
     const qtdVendas = vendas.length;
-    const ticketMedio = qtdVendas > 0 ? totalMes / qtdVendas : 0;
-    const clientesAtivos = new Set(vendas.map((v) => v.cliente_id)).size;
-    return { totalMes, qtdVendas, ticketMedio, clientesAtivos };
-  }, [vendas]);
+    const totalDespesas = despesas.reduce((s, d) => s + Number(d.valor ?? 0), 0);
+    return { totalMes, qtdVendas, totalDespesas };
+  }, [vendas, despesas]);
 
   const chartData = useMemo(() => {
     const start = new Date(startDate);
@@ -78,10 +72,7 @@ export default function Index() {
   const cards = [
     { label: "Vendas no Período", value: fmt(stats.totalMes), icon: TrendingUp, color: "text-primary" },
     { label: "Qtd. Vendas", value: String(stats.qtdVendas), icon: ShoppingCart, color: "text-blue-600" },
-    { label: "Ticket Médio", value: fmt(stats.ticketMedio), icon: Sparkles, color: "text-amber-600" },
-    { label: "Clientes Ativos", value: String(stats.clientesAtivos), icon: Users, color: "text-violet-600" },
-    { label: "Clientes", value: String(totalClientes), icon: Users, color: "text-rose-600" },
-    { label: "Produtos", value: String(totalProdutos), icon: Package, color: "text-cyan-600" },
+    { label: "Despesas no Período", value: fmt(stats.totalDespesas), icon: TrendingDown, color: "text-destructive" },
   ];
 
   const chartConfig = {
@@ -90,35 +81,22 @@ export default function Index() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div>
         <h1 className="text-xl font-semibold text-foreground">Dashboard</h1>
       </div>
 
-      {/* Date filter */}
       <div className="flex flex-wrap items-end gap-3">
         <div className="space-y-1 min-w-[140px]">
           <Label className="text-xs font-medium text-muted-foreground">De</Label>
-          <Input
-            type="date"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
-            className="h-9 text-sm"
-          />
+          <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="h-9 text-sm" />
         </div>
         <div className="space-y-1 min-w-[140px]">
           <Label className="text-xs font-medium text-muted-foreground">Até</Label>
-          <Input
-            type="date"
-            value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
-            className="h-9 text-sm"
-          />
+          <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="h-9 text-sm" />
         </div>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         {cards.map((c, index) => (
           <Card
             key={c.label}
@@ -131,18 +109,13 @@ export default function Index() {
                   <c.icon className={`h-4 w-4 ${c.color}`} />
                 </div>
               </div>
-              <div className="text-xl font-bold text-foreground tracking-tight">
-                {c.value}
-              </div>
-              <div className="text-[11px] font-medium text-muted-foreground mt-0.5">
-                {c.label}
-              </div>
+              <div className="text-xl font-bold text-foreground tracking-tight">{c.value}</div>
+              <div className="text-[11px] font-medium text-muted-foreground mt-0.5">{c.label}</div>
             </CardContent>
           </Card>
         ))}
       </div>
 
-      {/* Chart */}
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-sm font-medium text-foreground">Vendas por Dia</CardTitle>
@@ -161,13 +134,7 @@ export default function Index() {
                 <XAxis dataKey="date" fontSize={11} tickLine={false} axisLine={false} tick={{ fill: 'hsl(var(--muted-foreground))' }} />
                 <YAxis fontSize={11} tickLine={false} axisLine={false} tickFormatter={(v) => `R$${v}`} tick={{ fill: 'hsl(var(--muted-foreground))' }} />
                 <ChartTooltip content={<ChartTooltipContent />} />
-                <Area
-                  type="monotone"
-                  dataKey="total"
-                  stroke="hsl(var(--primary))"
-                  strokeWidth={2}
-                  fill="url(#colorTotal)"
-                />
+                <Area type="monotone" dataKey="total" stroke="hsl(var(--primary))" strokeWidth={2} fill="url(#colorTotal)" />
               </AreaChart>
             </ChartContainer>
           ) : (
