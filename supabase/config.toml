@@ -1,1 +1,4 @@
 project_id = "vsrzggpdhsmhvpsklses"
+
+[functions.analise-financeira]
+verify_jwt = true
