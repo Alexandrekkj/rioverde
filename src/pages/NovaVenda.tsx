@@ -26,15 +26,23 @@ const FORMAS_PAGAMENTO = [
   { value: "a_prazo", label: "A prazo" },
 ];
 
+function hojeISO() {
+  const d = new Date();
+  const off = d.getTimezoneOffset();
+  return new Date(d.getTime() - off * 60000).toISOString().slice(0, 10);
+}
+
 export default function NovaVenda() {
   const [clienteId, setClienteId] = useState("");
   const [itens, setItens] = useState<ItemVenda[]>([]);
   const [descontoGeral, setDescontoGeral] = useState(0);
   const [formaPagamento, setFormaPagamento] = useState("dinheiro");
   const [prazoDias, setPrazoDias] = useState<number | null>(null);
+  const [dataVenda, setDataVenda] = useState<string>(hojeISO());
   const [novoClienteOpen, setNovoClienteOpen] = useState(false);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+
 
   const { data: clientes = [] } = useQuery({
     queryKey: ["clientes"],
@@ -75,7 +83,7 @@ export default function NovaVenda() {
       const total = totalFinal;
       const { data: venda, error } = await supabase
         .from("vendas")
-        .insert({ cliente_id: clienteId, desconto_geral: descontoGeral, total, forma_pagamento: formaPagamento, prazo_dias: formaPagamento === "a_prazo" ? prazoDias : null })
+        .insert({ cliente_id: clienteId, desconto_geral: descontoGeral, total, forma_pagamento: formaPagamento, prazo_dias: formaPagamento === "a_prazo" ? prazoDias : null, data: new Date(dataVenda + "T12:00:00").toISOString() })
         .select().single();
       if (error) throw error;
       const itensInsert = itens.map((i) => ({ venda_id: venda.id, produto_id: i.produto_id, quantidade: i.quantidade, preco_unitario: i.preco_unitario, desconto: i.desconto }));
@@ -134,6 +142,10 @@ export default function NovaVenda() {
               </form>
             </DialogContent>
           </Dialog>
+          <div className="space-y-1.5 pt-2 border-t border-border">
+            <Label className="text-xs text-muted-foreground">Data da venda</Label>
+            <Input type="date" value={dataVenda} onChange={(e) => setDataVenda(e.target.value)} max={hojeISO()} />
+          </div>
         </CardContent>
       </Card>
 

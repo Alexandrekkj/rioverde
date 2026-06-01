@@ -12,6 +12,7 @@ import NovaVenda from "./pages/NovaVenda";
 import EditarVenda from "./pages/EditarVenda";
 import Despesas from "./pages/Despesas";
 import DashboardEstrategico from "./pages/DashboardEstrategico";
+import RadarRecompra from "./pages/RadarRecompra";
 
 import NotFound from "./pages/NotFound";
 
@@ -31,6 +32,7 @@ const App = () => (
           <Route path="/vendas/nova" element={<AppLayout><NovaVenda /></AppLayout>} />
           <Route path="/vendas/:id" element={<AppLayout><EditarVenda /></AppLayout>} />
           <Route path="/despesas" element={<AppLayout><Despesas /></AppLayout>} />
+          <Route path="/radar" element={<AppLayout><RadarRecompra /></AppLayout>} />
 
           <Route path="/dashboard-estrategico" element={<AppLayout><DashboardEstrategico /></AppLayout>} />
           <Route path="*" element={<NotFound />} />
