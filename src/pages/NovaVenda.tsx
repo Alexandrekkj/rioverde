@@ -142,6 +142,10 @@ export default function NovaVenda() {
               </form>
             </DialogContent>
           </Dialog>
+          <div className="space-y-1.5 pt-2 border-t border-border">
+            <Label className="text-xs text-muted-foreground">Data da venda</Label>
+            <Input type="date" value={dataVenda} onChange={(e) => setDataVenda(e.target.value)} max={hojeISO()} />
+          </div>
         </CardContent>
       </Card>
 
