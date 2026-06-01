@@ -113,9 +113,6 @@ export default function RadarRecompra() {
         <Radar className="h-6 w-6 text-primary" />
         <h1 className="heading-gradient text-2xl md:text-3xl">Radar de Recompra</h1>
       </div>
-      <p className="text-sm text-muted-foreground -mt-2">
-        Clientes ordenados por tempo sem comprar. Priorize visitas e ofertas para os destacados em vermelho.
-      </p>
 
       {/* Resumo */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
