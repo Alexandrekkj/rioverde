@@ -83,7 +83,7 @@ export default function NovaVenda() {
       const total = totalFinal;
       const { data: venda, error } = await supabase
         .from("vendas")
-        .insert({ cliente_id: clienteId, desconto_geral: descontoGeral, total, forma_pagamento: formaPagamento, prazo_dias: formaPagamento === "a_prazo" ? prazoDias : null })
+        .insert({ cliente_id: clienteId, desconto_geral: descontoGeral, total, forma_pagamento: formaPagamento, prazo_dias: formaPagamento === "a_prazo" ? prazoDias : null, data: new Date(dataVenda + "T12:00:00").toISOString() })
         .select().single();
       if (error) throw error;
       const itensInsert = itens.map((i) => ({ venda_id: venda.id, produto_id: i.produto_id, quantidade: i.quantidade, preco_unitario: i.preco_unitario, desconto: i.desconto }));
