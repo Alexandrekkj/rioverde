@@ -32,6 +32,7 @@ const App = () => (
           <Route path="/vendas/nova" element={<AppLayout><NovaVenda /></AppLayout>} />
           <Route path="/vendas/:id" element={<AppLayout><EditarVenda /></AppLayout>} />
           <Route path="/despesas" element={<AppLayout><Despesas /></AppLayout>} />
+          <Route path="/radar" element={<AppLayout><RadarRecompra /></AppLayout>} />
 
           <Route path="/dashboard-estrategico" element={<AppLayout><DashboardEstrategico /></AppLayout>} />
           <Route path="*" element={<NotFound />} />
