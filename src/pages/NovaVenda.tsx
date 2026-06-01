@@ -26,15 +26,23 @@ const FORMAS_PAGAMENTO = [
   { value: "a_prazo", label: "A prazo" },
 ];
 
+function hojeISO() {
+  const d = new Date();
+  const off = d.getTimezoneOffset();
+  return new Date(d.getTime() - off * 60000).toISOString().slice(0, 10);
+}
+
 export default function NovaVenda() {
   const [clienteId, setClienteId] = useState("");
   const [itens, setItens] = useState<ItemVenda[]>([]);
   const [descontoGeral, setDescontoGeral] = useState(0);
   const [formaPagamento, setFormaPagamento] = useState("dinheiro");
   const [prazoDias, setPrazoDias] = useState<number | null>(null);
+  const [dataVenda, setDataVenda] = useState<string>(hojeISO());
   const [novoClienteOpen, setNovoClienteOpen] = useState(false);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+
 
   const { data: clientes = [] } = useQuery({
     queryKey: ["clientes"],
