@@ -12,6 +12,7 @@ import NovaVenda from "./pages/NovaVenda";
 import EditarVenda from "./pages/EditarVenda";
 import Despesas from "./pages/Despesas";
 import DashboardEstrategico from "./pages/DashboardEstrategico";
+import RadarRecompra from "./pages/RadarRecompra";
 
 import NotFound from "./pages/NotFound";
 
