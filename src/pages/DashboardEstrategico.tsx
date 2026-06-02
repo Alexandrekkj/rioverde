@@ -3,7 +3,6 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -12,7 +11,7 @@ import {
 } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
-  TrendingUp, TrendingDown, DollarSign, AlertTriangle, Package, Trophy,
+  TrendingDown, DollarSign, AlertTriangle, Package, Trophy,
 } from "lucide-react";
 import {
   ChartContainer, ChartTooltip, ChartTooltipContent,
