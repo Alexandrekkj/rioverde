@@ -235,10 +235,6 @@ function PainelGenerico({ inicio, fim, queryKey, despesasPorTipoEnabled = false 
         </Card>
       )}
 
-      <div className="flex flex-wrap gap-2">
-        <Badge variant="outline" className="text-xs">{fin.qtdVendas} vendas no período</Badge>
-        <Badge variant="outline" className="text-xs">Lucro bruto: {fmt(fin.lucroBruto)}</Badge>
-      </div>
 
       <Dialog open={!!rankingOpen} onOpenChange={(o) => !o && setRankingOpen(null)}>
         <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
