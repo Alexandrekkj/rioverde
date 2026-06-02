@@ -256,10 +256,12 @@ export default function RadarRecompra() {
             return (
               <Card
                 key={c.id}
+                onClick={() => setSelecionado({ id: c.id, nome: c.nome })}
                 className={cn(
-                  "overflow-hidden transition-all",
+                  "overflow-hidden transition-all cursor-pointer hover:shadow-md",
                   isUrgente && "ring-1 ring-red-200 dark:ring-red-900",
                 )}
+
               >
                 <div className={cn("h-1 w-full", cls.bar)} />
                 <CardContent className="p-4">
