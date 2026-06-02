@@ -306,6 +306,15 @@ export default function RadarRecompra() {
           })
         )}
       </div>
+
+      {selecionado && (
+        <HistoricoCliente
+          clienteId={selecionado.id}
+          clienteNome={selecionado.nome}
+          onClose={() => setSelecionado(null)}
+        />
+      )}
     </div>
   );
 }
+
