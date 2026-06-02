@@ -5,8 +5,96 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Radar, Search, Calendar, AlertTriangle } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Radar, Search, Calendar, AlertTriangle, Star, ShoppingBag } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+const fmtMoney = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+function HistoricoCliente({ clienteId, clienteNome, onClose }: { clienteId: string; clienteNome: string; onClose: () => void }) {
+  const { data: vendas = [], isLoading } = useQuery({
+    queryKey: ["historico-cliente", clienteId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("vendas")
+        .select("id, data, total, forma_pagamento, itens_venda(quantidade, preco_unitario, desconto, produtos(nome))")
+        .eq("cliente_id", clienteId)
+        .order("data", { ascending: false });
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  const ultima = vendas[0];
+  const fmtData = (d: string) => new Date(d).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <ShoppingBag className="h-5 w-5 text-primary" />
+            {clienteNome}
+          </DialogTitle>
+        </DialogHeader>
+
+        {isLoading ? (
+          <p className="text-sm text-muted-foreground text-center py-8">Carregando...</p>
+        ) : vendas.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-8">Cliente ainda não realizou compras.</p>
+        ) : (
+          <div className="space-y-4">
+            {ultima && (
+              <Card className="border-primary/40 bg-primary/5">
+                <CardContent className="p-4 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Star className="h-4 w-4 text-primary fill-primary" />
+                    <span className="text-xs font-semibold text-primary uppercase tracking-wider">Última compra</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">{fmtData(ultima.data)}</span>
+                    <span className="text-lg font-bold text-primary">{fmtMoney(ultima.total ?? 0)}</span>
+                  </div>
+                  <div className="pt-2 border-t border-primary/20 space-y-1">
+                    <p className="text-[11px] font-semibold text-muted-foreground uppercase">Produtos</p>
+                    {(ultima.itens_venda ?? []).map((it: any, i: number) => (
+                      <div key={i} className="flex justify-between text-sm">
+                        <span>{it.quantidade}× {(it.produtos as any)?.nome ?? "—"}</span>
+                        <span className="text-muted-foreground">{fmtMoney((it.preco_unitario ?? 0) * (it.quantidade ?? 0) - (it.desconto ?? 0))}</span>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            <div>
+              <h3 className="text-sm font-semibold mb-2">Histórico completo ({vendas.length})</h3>
+              <div className="space-y-2">
+                {vendas.map((v: any) => (
+                  <Card key={v.id}>
+                    <CardContent className="p-3">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-sm font-medium">{fmtData(v.data)}</span>
+                        <span className="text-sm font-bold">{fmtMoney(v.total ?? 0)}</span>
+                      </div>
+                      <div className="text-xs text-muted-foreground space-y-0.5">
+                        {(v.itens_venda ?? []).map((it: any, i: number) => (
+                          <div key={i}>• {it.quantidade}× {(it.produtos as any)?.nome ?? "—"}</div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 
 type ClienteRadar = {
   id: string;
@@ -37,6 +125,8 @@ const FILTROS = [
 export default function RadarRecompra() {
   const [busca, setBusca] = useState("");
   const [filtro, setFiltro] = useState("todos");
+  const [selecionado, setSelecionado] = useState<{ id: string; nome: string } | null>(null);
+
 
   const { data: clientes = [] } = useQuery({
     queryKey: ["clientes"],
@@ -166,10 +256,12 @@ export default function RadarRecompra() {
             return (
               <Card
                 key={c.id}
+                onClick={() => setSelecionado({ id: c.id, nome: c.nome })}
                 className={cn(
-                  "overflow-hidden transition-all",
+                  "overflow-hidden transition-all cursor-pointer hover:shadow-md",
                   isUrgente && "ring-1 ring-red-200 dark:ring-red-900",
                 )}
+
               >
                 <div className={cn("h-1 w-full", cls.bar)} />
                 <CardContent className="p-4">
@@ -214,6 +306,15 @@ export default function RadarRecompra() {
           })
         )}
       </div>
+
+      {selecionado && (
+        <HistoricoCliente
+          clienteId={selecionado.id}
+          clienteNome={selecionado.nome}
+          onClose={() => setSelecionado(null)}
+        />
+      )}
     </div>
   );
 }
+
