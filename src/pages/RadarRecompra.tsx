@@ -125,6 +125,8 @@ const FILTROS = [
 export default function RadarRecompra() {
   const [busca, setBusca] = useState("");
   const [filtro, setFiltro] = useState("todos");
+  const [selecionado, setSelecionado] = useState<{ id: string; nome: string } | null>(null);
+
 
   const { data: clientes = [] } = useQuery({
     queryKey: ["clientes"],
