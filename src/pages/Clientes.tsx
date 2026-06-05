@@ -63,13 +63,18 @@ export default function Clientes() {
 
   const upsert = useMutation({
     mutationFn: async (c: z.infer<typeof clienteSchema>) => {
-      const payload = {
+      const payload: any = {
         nome: c.nome,
         nicho: c.nicho || null,
         responsavel: c.responsavel || null,
         telefone: c.telefone || null,
+        endereco: c.endereco || null,
         bairro: c.bairro || null,
         cidade: c.cidade || null,
+        complemento: c.complemento || null,
+        cpf_cnpj: c.cpf_cnpj || null,
+        inscricao_estadual: c.inscricao_estadual || null,
+        email: c.email || null,
       };
       if (editing) {
         const { error } = await supabase.from("clientes").update(payload).eq("id", editing.id);
