@@ -205,7 +205,15 @@ export default function RadarRecompra() {
       </div>
 
       {/* Resumo */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <Card><CardContent className="p-4">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground"><span className="h-2 w-2 rounded-full bg-emerald-500" />Ativos</div>
+          <div className="text-2xl font-bold mt-1 text-emerald-600">{counts.ativos}</div>
+        </CardContent></Card>
+        <Card><CardContent className="p-4">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground"><span className="h-2 w-2 rounded-full bg-muted-foreground" />Inativos</div>
+          <div className="text-2xl font-bold mt-1">{counts.inativos}</div>
+        </CardContent></Card>
         <Card><CardContent className="p-4">
           <div className="flex items-center gap-2 text-xs text-muted-foreground"><span className="h-2 w-2 rounded-full bg-emerald-500" />Verde (15+ dias)</div>
           <div className="text-2xl font-bold mt-1">{counts.verde}</div>
@@ -217,10 +225,6 @@ export default function RadarRecompra() {
         <Card><CardContent className="p-4">
           <div className="flex items-center gap-2 text-xs text-muted-foreground"><span className="h-2 w-2 rounded-full bg-red-500" />Vermelho (35+ dias)</div>
           <div className="text-2xl font-bold mt-1 text-red-600">{counts.vermelho}</div>
-        </CardContent></Card>
-        <Card><CardContent className="p-4">
-          <div className="flex items-center gap-2 text-xs text-muted-foreground"><span className="h-2 w-2 rounded-full bg-muted-foreground" />Sem compras</div>
-          <div className="text-2xl font-bold mt-1">{counts.nunca}</div>
         </CardContent></Card>
       </div>
 
