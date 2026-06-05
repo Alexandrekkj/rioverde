@@ -18,32 +18,53 @@ export type Database = {
         Row: {
           bairro: string | null
           cidade: string | null
+          complemento: string | null
+          cpf_cnpj: string | null
           created_at: string
+          email: string | null
+          endereco: string | null
           id: string
+          inscricao_estadual: string | null
           nicho: string | null
           nome: string
           responsavel: string | null
           telefone: string | null
+          ultima_compra: string | null
+          ultimo_pedido_id: string | null
         }
         Insert: {
           bairro?: string | null
           cidade?: string | null
+          complemento?: string | null
+          cpf_cnpj?: string | null
           created_at?: string
+          email?: string | null
+          endereco?: string | null
           id?: string
+          inscricao_estadual?: string | null
           nicho?: string | null
           nome: string
           responsavel?: string | null
           telefone?: string | null
+          ultima_compra?: string | null
+          ultimo_pedido_id?: string | null
         }
         Update: {
           bairro?: string | null
           cidade?: string | null
+          complemento?: string | null
+          cpf_cnpj?: string | null
           created_at?: string
+          email?: string | null
+          endereco?: string | null
           id?: string
+          inscricao_estadual?: string | null
           nicho?: string | null
           nome?: string
           responsavel?: string | null
           telefone?: string | null
+          ultima_compra?: string | null
+          ultimo_pedido_id?: string | null
         }
         Relationships: []
       }
