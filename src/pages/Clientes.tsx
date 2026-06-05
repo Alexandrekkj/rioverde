@@ -21,9 +21,14 @@ const clienteSchema = z.object({
   nome: z.string().min(1, "Nome é obrigatório").max(255, "Nome muito longo"),
   nicho: z.string().max(100, "Nicho muito longo").optional().or(z.literal("")),
   responsavel: z.string().max(255, "Nome muito longo").optional().or(z.literal("")),
-  telefone: z.string().max(20, "Telefone muito longo").optional().or(z.literal("")),
+  telefone: z.string().max(50, "Telefone muito longo").optional().or(z.literal("")),
+  endereco: z.string().max(255, "Endereço muito longo").optional().or(z.literal("")),
   bairro: z.string().max(100, "Bairro muito longo").optional().or(z.literal("")),
   cidade: z.string().max(100, "Cidade muito longa").optional().or(z.literal("")),
+  complemento: z.string().max(255, "Complemento muito longo").optional().or(z.literal("")),
+  cpf_cnpj: z.string().max(20, "CPF/CNPJ muito longo").optional().or(z.literal("")),
+  inscricao_estadual: z.string().max(30, "IE muito longa").optional().or(z.literal("")),
+  email: z.string().email("E-mail inválido").max(255).optional().or(z.literal("")),
 });
 
 const NONE_VALUE = "__none__";
@@ -58,13 +63,18 @@ export default function Clientes() {
 
   const upsert = useMutation({
     mutationFn: async (c: z.infer<typeof clienteSchema>) => {
-      const payload = {
+      const payload: any = {
         nome: c.nome,
         nicho: c.nicho || null,
         responsavel: c.responsavel || null,
         telefone: c.telefone || null,
+        endereco: c.endereco || null,
         bairro: c.bairro || null,
         cidade: c.cidade || null,
+        complemento: c.complemento || null,
+        cpf_cnpj: c.cpf_cnpj || null,
+        inscricao_estadual: c.inscricao_estadual || null,
+        email: c.email || null,
       };
       if (editing) {
         const { error } = await supabase.from("clientes").update(payload).eq("id", editing.id);
@@ -154,8 +164,13 @@ export default function Clientes() {
       nicho: selectedNicho === NONE_VALUE ? "" : selectedNicho,
       responsavel: (fd.get("responsavel") as string).trim(),
       telefone: (fd.get("telefone") as string).trim(),
+      endereco: (fd.get("endereco") as string).trim(),
       bairro: (fd.get("bairro") as string).trim(),
       cidade: (fd.get("cidade") as string).trim(),
+      complemento: (fd.get("complemento") as string).trim(),
+      cpf_cnpj: (fd.get("cpf_cnpj") as string).trim(),
+      inscricao_estadual: (fd.get("inscricao_estadual") as string).trim(),
+      email: (fd.get("email") as string).trim(),
     };
     const result = clienteSchema.safeParse(raw);
     if (!result.success) {
@@ -216,14 +231,14 @@ export default function Clientes() {
             <DialogTrigger asChild>
               <Button size="sm" onClick={openNew}><Plus className="mr-1.5 h-4 w-4" />Novo</Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>{editing ? "Editar Cliente" : "Novo Cliente"}</DialogTitle>
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="space-y-1.5"><Label htmlFor="nome">Nome *</Label><Input id="nome" name="nome" required maxLength={255} defaultValue={editing?.nome ?? ""} /></div>
+                <div className="space-y-1.5"><Label htmlFor="nome">Nome Fantasia *</Label><Input id="nome" name="nome" required maxLength={255} defaultValue={editing?.nome ?? ""} /></div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="nicho">Nicho</Label>
+                  <Label htmlFor="nicho">Nicho / Área de Atuação</Label>
                   <Select value={selectedNicho} onValueChange={setSelectedNicho}>
                     <SelectTrigger id="nicho">
                       <SelectValue placeholder="Selecione um nicho" />
@@ -236,8 +251,15 @@ export default function Clientes() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-1.5"><Label htmlFor="responsavel">Responsável</Label><Input id="responsavel" name="responsavel" maxLength={255} defaultValue={editing?.responsavel ?? ""} /></div>
-                <div className="space-y-1.5"><Label htmlFor="telefone">Telefone</Label><Input id="telefone" name="telefone" maxLength={20} defaultValue={editing?.telefone ?? ""} /></div>
+                <div className="space-y-1.5"><Label htmlFor="responsavel">Nome do Responsável</Label><Input id="responsavel" name="responsavel" maxLength={255} defaultValue={editing?.responsavel ?? ""} /></div>
+                <div className="space-y-1.5"><Label htmlFor="telefone">Telefone</Label><Input id="telefone" name="telefone" maxLength={50} defaultValue={editing?.telefone ?? ""} /></div>
+                <div className="space-y-1.5"><Label htmlFor="email">E-mail</Label><Input id="email" name="email" type="email" maxLength={255} defaultValue={(editing as any)?.email ?? ""} /></div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5"><Label htmlFor="cpf_cnpj">CPF / CNPJ</Label><Input id="cpf_cnpj" name="cpf_cnpj" maxLength={20} defaultValue={(editing as any)?.cpf_cnpj ?? ""} /></div>
+                  <div className="space-y-1.5"><Label htmlFor="inscricao_estadual">Inscrição Estadual</Label><Input id="inscricao_estadual" name="inscricao_estadual" maxLength={30} defaultValue={(editing as any)?.inscricao_estadual ?? ""} /></div>
+                </div>
+                <div className="space-y-1.5"><Label htmlFor="endereco">Endereço</Label><Input id="endereco" name="endereco" maxLength={255} defaultValue={(editing as any)?.endereco ?? ""} /></div>
+                <div className="space-y-1.5"><Label htmlFor="complemento">Complemento / Ponto de Referência</Label><Input id="complemento" name="complemento" maxLength={255} defaultValue={(editing as any)?.complemento ?? ""} /></div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5"><Label htmlFor="bairro">Bairro</Label><Input id="bairro" name="bairro" maxLength={100} defaultValue={editing?.bairro ?? ""} /></div>
                   <div className="space-y-1.5"><Label htmlFor="cidade">Cidade</Label><Input id="cidade" name="cidade" maxLength={100} defaultValue={editing?.cidade ?? ""} /></div>
