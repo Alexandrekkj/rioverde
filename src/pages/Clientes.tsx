@@ -164,8 +164,13 @@ export default function Clientes() {
       nicho: selectedNicho === NONE_VALUE ? "" : selectedNicho,
       responsavel: (fd.get("responsavel") as string).trim(),
       telefone: (fd.get("telefone") as string).trim(),
+      endereco: (fd.get("endereco") as string).trim(),
       bairro: (fd.get("bairro") as string).trim(),
       cidade: (fd.get("cidade") as string).trim(),
+      complemento: (fd.get("complemento") as string).trim(),
+      cpf_cnpj: (fd.get("cpf_cnpj") as string).trim(),
+      inscricao_estadual: (fd.get("inscricao_estadual") as string).trim(),
+      email: (fd.get("email") as string).trim(),
     };
     const result = clienteSchema.safeParse(raw);
     if (!result.success) {
