@@ -21,9 +21,14 @@ const clienteSchema = z.object({
   nome: z.string().min(1, "Nome é obrigatório").max(255, "Nome muito longo"),
   nicho: z.string().max(100, "Nicho muito longo").optional().or(z.literal("")),
   responsavel: z.string().max(255, "Nome muito longo").optional().or(z.literal("")),
-  telefone: z.string().max(20, "Telefone muito longo").optional().or(z.literal("")),
+  telefone: z.string().max(50, "Telefone muito longo").optional().or(z.literal("")),
+  endereco: z.string().max(255, "Endereço muito longo").optional().or(z.literal("")),
   bairro: z.string().max(100, "Bairro muito longo").optional().or(z.literal("")),
   cidade: z.string().max(100, "Cidade muito longa").optional().or(z.literal("")),
+  complemento: z.string().max(255, "Complemento muito longo").optional().or(z.literal("")),
+  cpf_cnpj: z.string().max(20, "CPF/CNPJ muito longo").optional().or(z.literal("")),
+  inscricao_estadual: z.string().max(30, "IE muito longa").optional().or(z.literal("")),
+  email: z.string().email("E-mail inválido").max(255).optional().or(z.literal("")),
 });
 
 const NONE_VALUE = "__none__";
