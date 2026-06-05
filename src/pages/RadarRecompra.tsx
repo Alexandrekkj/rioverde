@@ -273,6 +273,11 @@ export default function RadarRecompra() {
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
                         <h3 className="font-semibold text-base truncate">{c.nome}</h3>
+                        {c.ativo ? (
+                          <Badge className="bg-emerald-500 hover:bg-emerald-500 text-white text-[10px]">Ativo</Badge>
+                        ) : (
+                          <Badge variant="secondary" className="text-[10px]">Inativo</Badge>
+                        )}
                         {c.nicho && <Badge variant="outline" className="text-[10px]">{c.nicho}</Badge>}
                         {isUrgente && (
                           <Badge className="bg-red-500 hover:bg-red-500 text-white text-[10px]">
@@ -300,7 +305,7 @@ export default function RadarRecompra() {
                         {c.dias ?? "—"}
                       </div>
                       <div className="text-[10px] uppercase tracking-wider text-muted-foreground mt-0.5">
-                        {c.dias === null ? "sem compras" : "dias"}
+                        {c.dias === null ? "inativo" : "dias"}
                       </div>
                     </div>
                   </div>
