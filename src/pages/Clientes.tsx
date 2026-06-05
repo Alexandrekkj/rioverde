@@ -231,14 +231,14 @@ export default function Clientes() {
             <DialogTrigger asChild>
               <Button size="sm" onClick={openNew}><Plus className="mr-1.5 h-4 w-4" />Novo</Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>{editing ? "Editar Cliente" : "Novo Cliente"}</DialogTitle>
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="space-y-1.5"><Label htmlFor="nome">Nome *</Label><Input id="nome" name="nome" required maxLength={255} defaultValue={editing?.nome ?? ""} /></div>
+                <div className="space-y-1.5"><Label htmlFor="nome">Nome Fantasia *</Label><Input id="nome" name="nome" required maxLength={255} defaultValue={editing?.nome ?? ""} /></div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="nicho">Nicho</Label>
+                  <Label htmlFor="nicho">Nicho / Área de Atuação</Label>
                   <Select value={selectedNicho} onValueChange={setSelectedNicho}>
                     <SelectTrigger id="nicho">
                       <SelectValue placeholder="Selecione um nicho" />
@@ -251,8 +251,15 @@ export default function Clientes() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-1.5"><Label htmlFor="responsavel">Responsável</Label><Input id="responsavel" name="responsavel" maxLength={255} defaultValue={editing?.responsavel ?? ""} /></div>
-                <div className="space-y-1.5"><Label htmlFor="telefone">Telefone</Label><Input id="telefone" name="telefone" maxLength={20} defaultValue={editing?.telefone ?? ""} /></div>
+                <div className="space-y-1.5"><Label htmlFor="responsavel">Nome do Responsável</Label><Input id="responsavel" name="responsavel" maxLength={255} defaultValue={editing?.responsavel ?? ""} /></div>
+                <div className="space-y-1.5"><Label htmlFor="telefone">Telefone</Label><Input id="telefone" name="telefone" maxLength={50} defaultValue={editing?.telefone ?? ""} /></div>
+                <div className="space-y-1.5"><Label htmlFor="email">E-mail</Label><Input id="email" name="email" type="email" maxLength={255} defaultValue={(editing as any)?.email ?? ""} /></div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5"><Label htmlFor="cpf_cnpj">CPF / CNPJ</Label><Input id="cpf_cnpj" name="cpf_cnpj" maxLength={20} defaultValue={(editing as any)?.cpf_cnpj ?? ""} /></div>
+                  <div className="space-y-1.5"><Label htmlFor="inscricao_estadual">Inscrição Estadual</Label><Input id="inscricao_estadual" name="inscricao_estadual" maxLength={30} defaultValue={(editing as any)?.inscricao_estadual ?? ""} /></div>
+                </div>
+                <div className="space-y-1.5"><Label htmlFor="endereco">Endereço</Label><Input id="endereco" name="endereco" maxLength={255} defaultValue={(editing as any)?.endereco ?? ""} /></div>
+                <div className="space-y-1.5"><Label htmlFor="complemento">Complemento / Ponto de Referência</Label><Input id="complemento" name="complemento" maxLength={255} defaultValue={(editing as any)?.complemento ?? ""} /></div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5"><Label htmlFor="bairro">Bairro</Label><Input id="bairro" name="bairro" maxLength={100} defaultValue={editing?.bairro ?? ""} /></div>
                   <div className="space-y-1.5"><Label htmlFor="cidade">Cidade</Label><Input id="cidade" name="cidade" maxLength={100} defaultValue={editing?.cidade ?? ""} /></div>
