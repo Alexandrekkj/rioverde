@@ -5,11 +5,193 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Radar, Search, Calendar, AlertTriangle, Star, ShoppingBag } from "lucide-react";
+import { Radar, Search, Calendar, AlertTriangle, Star, ShoppingBag, Receipt, Phone } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const fmtMoney = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+type CobrancaItem = {
+  vendaId: string;
+  clienteId: string;
+  clienteNome: string;
+  telefone: string | null;
+  data: Date;
+  vencimento: Date;
+  diasRestantes: number;
+  prazoDias: number;
+  total: number;
+};
+
+function classifyCobranca(dias: number) {
+  if (dias <= 0) return { label: "Vencido", bar: "bg-red-600", text: "text-red-700", ring: "ring-red-300 dark:ring-red-900" };
+  if (dias <= 5) return { label: "Urgente", bar: "bg-red-500", text: "text-red-600", ring: "ring-red-200 dark:ring-red-900" };
+  if (dias <= 10) return { label: "Atenção", bar: "bg-amber-500", text: "text-amber-600", ring: "" };
+  return { label: "Em dia", bar: "bg-emerald-500", text: "text-emerald-600", ring: "" };
+}
+
+function Cobrancas() {
+  const [busca, setBusca] = useState("");
+  const [filtro, setFiltro] = useState("todos");
+
+  const { data: vendas = [] } = useQuery({
+    queryKey: ["cobrancas-a-prazo"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("vendas")
+        .select("id, data, total, prazo_dias, cliente_id, clientes(id, nome, telefone)")
+        .eq("forma_pagamento", "a_prazo")
+        .not("prazo_dias", "is", null)
+        .order("data", { ascending: false });
+      if (error) throw error;
+      return data as any[];
+    },
+  });
+
+  const cobrancas: CobrancaItem[] = useMemo(() => {
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+    return vendas
+      .filter((v) => v.clientes)
+      .map((v) => {
+        const data = new Date(v.data);
+        const venc = new Date(data);
+        venc.setDate(venc.getDate() + (v.prazo_dias ?? 0));
+        venc.setHours(0, 0, 0, 0);
+        const dias = Math.ceil((venc.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24));
+        return {
+          vendaId: v.id,
+          clienteId: v.cliente_id,
+          clienteNome: v.clientes.nome,
+          telefone: v.clientes.telefone ?? null,
+          data,
+          vencimento: venc,
+          diasRestantes: dias,
+          prazoDias: v.prazo_dias ?? 0,
+          total: Number(v.total ?? 0),
+        };
+      });
+  }, [vendas]);
+
+  const filtradas = useMemo(() => {
+    const q = busca.trim().toLowerCase();
+    return cobrancas
+      .filter((c) => (q ? c.clienteNome.toLowerCase().includes(q) : true))
+      .filter((c) => {
+        if (filtro === "todos") return true;
+        if (filtro === "vencido") return c.diasRestantes <= 0;
+        if (filtro === "urgente") return c.diasRestantes > 0 && c.diasRestantes <= 5;
+        if (filtro === "atencao") return c.diasRestantes > 5 && c.diasRestantes <= 10;
+        if (filtro === "emdia") return c.diasRestantes > 10;
+        return true;
+      })
+      .sort((a, b) => a.diasRestantes - b.diasRestantes);
+  }, [cobrancas, busca, filtro]);
+
+  const counts = useMemo(() => {
+    const c = { vencido: 0, urgente: 0, atencao: 0, emdia: 0, total: 0 };
+    for (const x of cobrancas) {
+      c.total += x.total;
+      if (x.diasRestantes <= 0) c.vencido++;
+      else if (x.diasRestantes <= 5) c.urgente++;
+      else if (x.diasRestantes <= 10) c.atencao++;
+      else c.emdia++;
+    }
+    return c;
+  }, [cobrancas]);
+
+  const fmtData = (d: Date) => d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
+
+  return (
+    <div className="space-y-5">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <Card><CardContent className="p-4">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground"><span className="h-2 w-2 rounded-full bg-red-600" />Vencidas</div>
+          <div className="text-2xl font-bold mt-1 text-red-700">{counts.vencido}</div>
+        </CardContent></Card>
+        <Card><CardContent className="p-4">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground"><span className="h-2 w-2 rounded-full bg-red-500" />Urgente (1-5d)</div>
+          <div className="text-2xl font-bold mt-1 text-red-600">{counts.urgente}</div>
+        </CardContent></Card>
+        <Card><CardContent className="p-4">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground"><span className="h-2 w-2 rounded-full bg-amber-500" />Atenção (6-10d)</div>
+          <div className="text-2xl font-bold mt-1 text-amber-600">{counts.atencao}</div>
+        </CardContent></Card>
+        <Card><CardContent className="p-4">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground"><span className="h-2 w-2 rounded-full bg-emerald-500" />Em dia (10+ d)</div>
+          <div className="text-2xl font-bold mt-1 text-emerald-600">{counts.emdia}</div>
+        </CardContent></Card>
+        <Card><CardContent className="p-4">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground"><Receipt className="h-3 w-3" />Total a receber</div>
+          <div className="text-lg font-bold mt-1 text-primary">{fmtMoney(counts.total)}</div>
+        </CardContent></Card>
+      </div>
+
+      <div className="flex flex-col sm:flex-row gap-2">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input placeholder="Buscar cliente pelo nome..." value={busca} onChange={(e) => setBusca(e.target.value)} className="pl-9" />
+        </div>
+        <Select value={filtro} onValueChange={setFiltro}>
+          <SelectTrigger className="w-full sm:w-64"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todos">Todas</SelectItem>
+            <SelectItem value="vencido">Vencidas</SelectItem>
+            <SelectItem value="urgente">Urgente (1-5 dias)</SelectItem>
+            <SelectItem value="atencao">Atenção (6-10 dias)</SelectItem>
+            <SelectItem value="emdia">Em dia (10+ dias)</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="space-y-2">
+        {filtradas.length === 0 ? (
+          <Card><CardContent className="p-6 text-center text-sm text-muted-foreground">
+            Nenhuma cobrança a prazo encontrada.
+          </CardContent></Card>
+        ) : (
+          filtradas.map((c) => {
+            const cls = classifyCobranca(c.diasRestantes);
+            return (
+              <Card key={c.vendaId} className={cn("overflow-hidden", cls.ring && `ring-1 ${cls.ring}`)}>
+                <div className={cn("h-1 w-full", cls.bar)} />
+                <CardContent className="p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="font-semibold text-base truncate">{c.clienteNome}</h3>
+                        <Badge className={cn("text-white text-[10px]", cls.bar, `hover:${cls.bar}`)}>
+                          {c.diasRestantes <= 5 && <AlertTriangle className="h-3 w-3 mr-1" />}
+                          {cls.label}
+                        </Badge>
+                        <Badge variant="outline" className="text-[10px]">Prazo: {c.prazoDias} dias</Badge>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground mt-1">
+                        <span className="flex items-center gap-1"><Calendar className="h-3 w-3" />Venda: {fmtData(c.data)}</span>
+                        <span className="flex items-center gap-1"><Receipt className="h-3 w-3" />Vence: {fmtData(c.vencimento)}</span>
+                        {c.telefone && <span className="flex items-center gap-1"><Phone className="h-3 w-3" />{c.telefone}</span>}
+                      </div>
+                      <div className="text-sm font-semibold text-primary mt-1.5">{fmtMoney(c.total)}</div>
+                    </div>
+                    <div className="text-right">
+                      <div className={cn("text-2xl font-bold leading-none", cls.text)}>
+                        {c.diasRestantes <= 0 ? Math.abs(c.diasRestantes) : c.diasRestantes}
+                      </div>
+                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground mt-0.5">
+                        {c.diasRestantes <= 0 ? (c.diasRestantes === 0 ? "vence hoje" : "dias atraso") : "dias restantes"}
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
+}
 
 function HistoricoCliente({ clienteId, clienteNome, onClose }: { clienteId: string; clienteNome: string; onClose: () => void }) {
   const { data: vendas = [], isLoading } = useQuery({
@@ -126,6 +308,7 @@ const FILTROS = [
 ];
 
 export default function RadarRecompra() {
+  const [aba, setAba] = useState<"radar" | "cobrancas">("radar");
   const [busca, setBusca] = useState("");
   const [filtro, setFiltro] = useState("todos");
   const [selecionado, setSelecionado] = useState<{ id: string; nome: string } | null>(null);
@@ -199,10 +382,34 @@ export default function RadarRecompra() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center gap-2">
-        <Radar className="h-6 w-6 text-primary" />
-        <h1 className="heading-gradient text-2xl md:text-3xl">Radar de Recompra</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <Radar className="h-6 w-6 text-primary" />
+          <h1 className="heading-gradient text-2xl md:text-3xl">Radar de Recompra</h1>
+        </div>
+        <div className="inline-flex rounded-lg border border-border bg-card p-1">
+          <Button
+            variant={aba === "radar" ? "default" : "ghost"}
+            size="sm"
+            className="h-8"
+            onClick={() => setAba("radar")}
+          >
+            <Radar className="h-4 w-4 mr-1.5" />Radar
+          </Button>
+          <Button
+            variant={aba === "cobrancas" ? "default" : "ghost"}
+            size="sm"
+            className="h-8"
+            onClick={() => setAba("cobrancas")}
+          >
+            <Receipt className="h-4 w-4 mr-1.5" />Cobranças
+          </Button>
+        </div>
       </div>
+
+      {aba === "cobrancas" ? <Cobrancas /> : (
+      <>
+
 
       {/* Resumo */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
@@ -322,6 +529,8 @@ export default function RadarRecompra() {
           clienteNome={selecionado.nome}
           onClose={() => setSelecionado(null)}
         />
+      )}
+      </>
       )}
     </div>
   );
