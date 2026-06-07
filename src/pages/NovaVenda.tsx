@@ -7,10 +7,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, Trash2, ShoppingCart } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Plus, Trash2, ShoppingCart, Check, ChevronsUpDown } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import type { TablesInsert } from "@/integrations/supabase/types";
+import { cn } from "@/lib/utils";
+
 
 type ItemVenda = {
   produto_id: string;
@@ -124,10 +128,31 @@ export default function NovaVenda() {
       <Card className="card-interactive">
         <CardHeader className="pb-3"><CardTitle className="text-sm font-semibold">Cliente</CardTitle></CardHeader>
         <CardContent className="space-y-3">
-          <Select value={clienteId} onValueChange={setClienteId}>
-            <SelectTrigger><SelectValue placeholder="Selecionar cliente" /></SelectTrigger>
-            <SelectContent>{clientes.map((c) => (<SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>))}</SelectContent>
-          </Select>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" role="combobox" className="w-full justify-between font-normal">
+                {clienteId ? clientes.find((c) => c.id === clienteId)?.nome : "Selecionar cliente"}
+                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-full p-0" align="start">
+              <Command>
+                <CommandInput placeholder="Buscar cliente..." />
+                <CommandList>
+                  <CommandEmpty>Nenhum cliente encontrado.</CommandEmpty>
+                  <CommandGroup>
+                    {clientes.map((c) => (
+                      <CommandItem key={c.id} value={c.nome} onSelect={() => { setClienteId(c.id === clienteId ? "" : c.id); }}>
+                        <Check className={cn("mr-2 h-4 w-4", clienteId === c.id ? "opacity-100" : "opacity-0")} />
+                        {c.nome}
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
+
           <Dialog open={novoClienteOpen} onOpenChange={setNovoClienteOpen}>
             <DialogTrigger asChild>
               <Button variant="outline" size="sm" className="w-full"><Plus className="mr-1.5 h-4 w-4" />Novo Cliente</Button>
