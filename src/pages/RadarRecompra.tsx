@@ -530,6 +530,8 @@ export default function RadarRecompra() {
           onClose={() => setSelecionado(null)}
         />
       )}
+      </>
+      )}
     </div>
   );
 }
