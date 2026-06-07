@@ -44,6 +44,8 @@ export default function NovaVenda() {
   const [prazoDias, setPrazoDias] = useState<number | null>(null);
   const [dataVenda, setDataVenda] = useState<string>(hojeISO());
   const [novoClienteOpen, setNovoClienteOpen] = useState(false);
+  const [clienteOpen, setClienteOpen] = useState(false);
+  const [produtoOpen, setProdutoOpen] = useState(false);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
