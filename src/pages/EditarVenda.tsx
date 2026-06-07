@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Trash2, Save, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate, useParams } from "react-router-dom";
+import { format, parseISO } from "date-fns";
 
 type ItemVenda = {
   produto_id: string;
@@ -31,6 +32,7 @@ export default function EditarVenda() {
   const [descontoGeral, setDescontoGeral] = useState(0);
   const [formaPagamento, setFormaPagamento] = useState("dinheiro");
   const [prazoDias, setPrazoDias] = useState<number | null>(null);
+  const [dataVenda, setDataVenda] = useState(""); // new state for sale date
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
@@ -49,7 +51,19 @@ export default function EditarVenda() {
     enabled: !!id,
   });
 
-  useEffect(() => { if (venda) { setClienteId(venda.cliente_id); setDescontoGeral(venda.desconto_geral); setFormaPagamento(venda.forma_pagamento ?? "dinheiro"); setPrazoDias(venda.prazo_dias ?? null); } }, [venda]);
+  useEffect(() => {
+    if (venda) {
+      setClienteId(venda.cliente_id);
+      setDescontoGeral(venda.desconto_geral);
+      setFormaPagamento(venda.forma_pagamento ?? "dinheiro");
+      setPrazoDias(venda.prazo_dias ?? null);
+      if (venda.data) {
+        // assume venda.data is ISO string
+        const date = parseISO(venda.data);
+        setDataVenda(format(date, "yyyy-MM-dd'T'HH:mm"));
+      }
+    }
+  }, [venda]);
   useEffect(() => { if (itensExistentes.length > 0) { setItens(itensExistentes.map((i: any) => ({ produto_id: i.produto_id, nome: i.produtos?.nome ?? "Produto removido", quantidade: i.quantidade, preco_unitario: i.preco_unitario, desconto: i.desconto }))); } }, [itensExistentes]);
 
   const salvarVenda = useMutation({
@@ -57,7 +71,14 @@ export default function EditarVenda() {
       if (!clienteId) throw new Error("Selecione um cliente");
       if (itens.length === 0) throw new Error("Adicione ao menos um produto");
       const total = totalFinal;
-      const { error } = await supabase.from("vendas").update({ cliente_id: clienteId, desconto_geral: descontoGeral, total, forma_pagamento: formaPagamento, prazo_dias: formaPagamento === "a_prazo" ? prazoDias : null }).eq("id", id!);
+      const { error } = await supabase.from("vendas").update({
+        cliente_id: clienteId,
+        desconto_geral: descontoGeral,
+        total,
+        forma_pagamento: formaPagamento,
+        prazo_dias: formaPagamento === "a_prazo" ? prazoDias : null,
+        data: dataVenda ? new Date(dataVenda).toISOString() : undefined,
+      }).eq("id", id!);
       if (error) throw error;
       const { error: delErr } = await supabase.from("itens_venda").delete().eq("venda_id", id!);
       if (delErr) throw delErr;
@@ -122,6 +143,10 @@ export default function EditarVenda() {
               <Input type="number" min={1} className="w-24 h-9" value={prazoDias ?? ""} onChange={(e) => setPrazoDias(parseInt(e.target.value) || null)} />
             </div>
           )}
+          <div className="flex items-center gap-3">
+            <Label className="text-xs whitespace-nowrap font-medium">Data da Venda</Label>
+            <Input type="datetime-local" className="h-9" value={dataVenda} onChange={(e) => setDataVenda(e.target.value)} />
+          </div>
         </CardContent>
       </Card>
 

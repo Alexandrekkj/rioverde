@@ -16,6 +16,7 @@ import type { Tables } from "@/integrations/supabase/types";
 
 type Cliente = Tables<"clientes">;
 type Nicho = { id: string; nome: string };
+type Cidade = { id: string; nome: string };
 
 const clienteSchema = z.object({
   nome: z.string().min(1, "Nome é obrigatório").max(255, "Nome muito longo"),
@@ -36,11 +37,15 @@ const NONE_VALUE = "__none__";
 export default function Clientes() {
   const [search, setSearch] = useState("");
   const [nichoFilter, setNichoFilter] = useState<string>("todos");
+  const [cidadeFilter, setCidadeFilter] = useState<string>("todos");
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Cliente | null>(null);
   const [selectedNicho, setSelectedNicho] = useState<string>(NONE_VALUE);
+  const [selectedCidade, setSelectedCidade] = useState<string>(NONE_VALUE);
   const [nichosOpen, setNichosOpen] = useState(false);
+  const [cidadesOpen, setCidadesOpen] = useState(false);
   const [novoNicho, setNovoNicho] = useState("");
+  const [novoCidade, setNovoCidade] = useState("");
   const queryClient = useQueryClient();
 
   const { data: clientes = [], isLoading } = useQuery({
@@ -58,6 +63,15 @@ export default function Clientes() {
       const { data, error } = await supabase.from("nichos" as any).select("*").order("nome");
       if (error) throw error;
       return (data ?? []) as unknown as Nicho[];
+    },
+  });
+
+  const { data: cidades = [] } = useQuery({
+    queryKey: ["cidades"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("cidades" as any).select("*").order("nome");
+      if (error) throw error;
+      return (data ?? []) as unknown as Cidade[];
     },
   });
 
@@ -130,29 +144,61 @@ export default function Clientes() {
     onError: () => toast.error("Erro ao remover nicho"),
   });
 
+  const addCidade = useMutation({
+    mutationFn: async (nome: string) => {
+      const { error } = await supabase.from("cidades" as any).insert({ nome });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["cidades"] });
+      setNovoCidade("");
+      toast.success("Cidade adicionada!");
+    },
+    onError: (e: any) => toast.error(e?.message?.includes("duplicate") ? "Cidade já existe" : "Erro ao adicionar cidade"),
+  });
+
+  const delCidade = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("cidades" as any).delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["cidades"] });
+      toast.success("Cidade removida!");
+    },
+    onError: () => toast.error("Erro ao remover cidade"),
+  });
+
   const filtered = clientes.filter((c) => {
     const matchSearch =
       c.nome.toLowerCase().includes(search.toLowerCase()) ||
-      (c.nicho && c.nicho.toLowerCase().includes(search.toLowerCase()));
+      (c.nicho && c.nicho.toLowerCase().includes(search.toLowerCase())) ||
+      (c.cidade && c.cidade.toLowerCase().includes(search.toLowerCase()));
     const matchNicho = nichoFilter === "todos" || c.nicho === nichoFilter;
-    return matchSearch && matchNicho;
+    const matchCidade = cidadeFilter === "todos" || c.cidade === cidadeFilter;
+    return matchSearch && matchNicho && matchCidade;
   });
 
   function handleOpenChange(v: boolean) {
     setOpen(v);
     if (!v) setEditing(null);
-    if (v) setSelectedNicho(editing?.nicho ?? NONE_VALUE);
+    if (v) {
+      setSelectedNicho(editing?.nicho ?? NONE_VALUE);
+      setSelectedCidade(editing?.cidade ?? NONE_VALUE);
+    }
   }
 
   function openNew() {
     setEditing(null);
     setSelectedNicho(NONE_VALUE);
+    setSelectedCidade(NONE_VALUE);
     setOpen(true);
   }
 
   function openEdit(c: Cliente) {
     setEditing(c);
     setSelectedNicho(c.nicho ?? NONE_VALUE);
+    setSelectedCidade(c.cidade ?? NONE_VALUE);
     setOpen(true);
   }
 
@@ -166,11 +212,11 @@ export default function Clientes() {
       telefone: (fd.get("telefone") as string).trim(),
       endereco: (fd.get("endereco") as string).trim(),
       bairro: (fd.get("bairro") as string).trim(),
-      cidade: (fd.get("cidade") as string).trim(),
+      cidade: selectedCidade === NONE_VALUE ? "" : selectedCidade,
       complemento: (fd.get("complemento") as string).trim(),
       cpf_cnpj: (fd.get("cpf_cnpj") as string).trim(),
       inscricao_estadual: (fd.get("inscricao_estadual") as string).trim(),
-      email: (fd.get("email") as string).trim(),
+      email: (fd.get("email") as string).trim()
     };
     const result = clienteSchema.safeParse(raw);
     if (!result.success) {
@@ -185,6 +231,48 @@ export default function Clientes() {
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <h1 className="heading-gradient text-2xl md:text-3xl">Clientes</h1>
         <div className="flex gap-2">
+          <Dialog open={cidadesOpen} onOpenChange={setCidadesOpen}>
+            <DialogTrigger asChild>
+              <Button size="sm" variant="outline"><MapPin className="mr-1.5 h-4 w-4" />Cidades</Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Gerenciar Cidades</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-3">
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Ex: Rio Verde"
+                    value={novoCidade}
+                    onChange={(e) => setNovoCidade(e.target.value)}
+                    maxLength={100}
+                  />
+                  <Button
+                    size="sm"
+                    onClick={() => novoCidade.trim() && addCidade.mutate(novoCidade.trim())}
+                    disabled={!novoCidade.trim() || addCidade.isPending}
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+                <div className="space-y-1 max-h-[300px] overflow-y-auto">
+                  {cidades.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-4">Nenhuma cidade cadastrada.</p>
+                  ) : (
+                    cidades.map((c) => (
+                      <div key={c.id} className="flex items-center justify-between rounded-md border bg-card px-3 py-2">
+                        <span className="text-sm">{c.nome}</span>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => delCidade.mutate(c.id)}>
+                          <X className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+
           <Dialog open={nichosOpen} onOpenChange={setNichosOpen}>
             <DialogTrigger asChild>
               <Button size="sm" variant="outline"><Tag className="mr-1.5 h-4 w-4" />Nichos</Button>
@@ -262,7 +350,20 @@ export default function Clientes() {
                 <div className="space-y-1.5"><Label htmlFor="complemento">Complemento / Ponto de Referência</Label><Input id="complemento" name="complemento" maxLength={255} defaultValue={(editing as any)?.complemento ?? ""} /></div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5"><Label htmlFor="bairro">Bairro</Label><Input id="bairro" name="bairro" maxLength={100} defaultValue={editing?.bairro ?? ""} /></div>
-                  <div className="space-y-1.5"><Label htmlFor="cidade">Cidade</Label><Input id="cidade" name="cidade" maxLength={100} defaultValue={editing?.cidade ?? ""} /></div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="cidade">Cidade</Label>
+                    <Select value={selectedCidade} onValueChange={setSelectedCidade}>
+                      <SelectTrigger id="cidade">
+                        <SelectValue placeholder="Selecione uma cidade" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={NONE_VALUE}>Sem cidade</SelectItem>
+                        {cidades.map((c) => (
+                          <SelectItem key={c.id} value={c.nome}>{c.nome}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
                 <Button type="submit" className="w-full" disabled={upsert.isPending}>Salvar</Button>
               </form>
@@ -282,13 +383,24 @@ export default function Clientes() {
           />
         </div>
         <Select value={nichoFilter} onValueChange={setNichoFilter}>
-          <SelectTrigger className="sm:w-[200px]">
+          <SelectTrigger className="sm:w-[180px]">
             <SelectValue placeholder="Filtrar por nicho" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="todos">Todos os nichos</SelectItem>
             {nichos.map((n) => (
               <SelectItem key={n.id} value={n.nome}>{n.nome}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={cidadeFilter} onValueChange={setCidadeFilter}>
+          <SelectTrigger className="sm:w-[180px]">
+            <SelectValue placeholder="Filtrar por cidade" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todos">Todas as cidades</SelectItem>
+            {cidades.map((c) => (
+              <SelectItem key={c.id} value={c.nome}>{c.nome}</SelectItem>
             ))}
           </SelectContent>
         </Select>
