@@ -201,10 +201,38 @@ export default function NovaVenda() {
       <Card className="card-interactive">
         <CardHeader className="pb-3"><CardTitle className="text-sm font-semibold">Produtos</CardTitle></CardHeader>
         <CardContent className="space-y-3">
-          <Select onValueChange={addProduto}>
-            <SelectTrigger><SelectValue placeholder="Adicionar produto" /></SelectTrigger>
-            <SelectContent>{produtos.map((p) => (<SelectItem key={p.id} value={p.id}>{p.nome} — {fmt(p.preco)}</SelectItem>))}</SelectContent>
-          </Select>
+          <Popover open={produtoOpen} onOpenChange={setProdutoOpen}>
+            <PopoverTrigger asChild>
+              <Button variant="outline" role="combobox" className="w-full justify-between font-normal">
+                <span className="truncate text-muted-foreground">Adicionar produto</span>
+                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent
+              className="p-0 w-[--radix-popover-trigger-width] max-w-[calc(100vw-2rem)]"
+              align="start"
+              sideOffset={4}
+            >
+              <Command>
+                <CommandInput placeholder="Buscar produto..." />
+                <CommandList className="max-h-[min(60vh,300px)]">
+                  <CommandEmpty>Nenhum produto encontrado.</CommandEmpty>
+                  <CommandGroup>
+                    {produtos.map((p) => (
+                      <CommandItem
+                        key={p.id}
+                        value={p.nome}
+                        onSelect={() => { addProduto(p.id); setProdutoOpen(false); }}
+                      >
+                        <span className="flex-1 truncate">{p.nome}</span>
+                        <span className="ml-2 text-xs text-muted-foreground shrink-0">{fmt(p.preco)}</span>
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
           {itens.length === 0 ? (
             <p className="text-xs text-muted-foreground py-2">Nenhum produto adicionado.</p>
           ) : (
