@@ -128,23 +128,27 @@ export default function NovaVenda() {
       <Card className="card-interactive">
         <CardHeader className="pb-3"><CardTitle className="text-sm font-semibold">Cliente</CardTitle></CardHeader>
         <CardContent className="space-y-3">
-          <Popover>
+          <Popover open={clienteOpen} onOpenChange={setClienteOpen}>
             <PopoverTrigger asChild>
               <Button variant="outline" role="combobox" className="w-full justify-between font-normal">
-                {clienteId ? clientes.find((c) => c.id === clienteId)?.nome : "Selecionar cliente"}
+                <span className="truncate">{clienteId ? clientes.find((c) => c.id === clienteId)?.nome : "Selecionar cliente"}</span>
                 <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-full p-0" align="start">
+            <PopoverContent
+              className="p-0 w-[--radix-popover-trigger-width] max-w-[calc(100vw-2rem)]"
+              align="start"
+              sideOffset={4}
+            >
               <Command>
                 <CommandInput placeholder="Buscar cliente..." />
-                <CommandList>
+                <CommandList className="max-h-[min(60vh,300px)]">
                   <CommandEmpty>Nenhum cliente encontrado.</CommandEmpty>
                   <CommandGroup>
                     {clientes.map((c) => (
-                      <CommandItem key={c.id} value={c.nome} onSelect={() => { setClienteId(c.id === clienteId ? "" : c.id); }}>
-                        <Check className={cn("mr-2 h-4 w-4", clienteId === c.id ? "opacity-100" : "opacity-0")} />
-                        {c.nome}
+                      <CommandItem key={c.id} value={c.nome} onSelect={() => { setClienteId(c.id === clienteId ? "" : c.id); setClienteOpen(false); }}>
+                        <Check className={cn("mr-2 h-4 w-4 shrink-0", clienteId === c.id ? "opacity-100" : "opacity-0")} />
+                        <span className="truncate">{c.nome}</span>
                       </CommandItem>
                     ))}
                   </CommandGroup>
