@@ -7,10 +7,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, Trash2, ShoppingCart } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Plus, Trash2, ShoppingCart, Check, ChevronsUpDown } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import type { TablesInsert } from "@/integrations/supabase/types";
+import { cn } from "@/lib/utils";
+
 
 type ItemVenda = {
   produto_id: string;
