@@ -382,10 +382,34 @@ export default function RadarRecompra() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center gap-2">
-        <Radar className="h-6 w-6 text-primary" />
-        <h1 className="heading-gradient text-2xl md:text-3xl">Radar de Recompra</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <Radar className="h-6 w-6 text-primary" />
+          <h1 className="heading-gradient text-2xl md:text-3xl">Radar de Recompra</h1>
+        </div>
+        <div className="inline-flex rounded-lg border border-border bg-card p-1">
+          <Button
+            variant={aba === "radar" ? "default" : "ghost"}
+            size="sm"
+            className="h-8"
+            onClick={() => setAba("radar")}
+          >
+            <Radar className="h-4 w-4 mr-1.5" />Radar
+          </Button>
+          <Button
+            variant={aba === "cobrancas" ? "default" : "ghost"}
+            size="sm"
+            className="h-8"
+            onClick={() => setAba("cobrancas")}
+          >
+            <Receipt className="h-4 w-4 mr-1.5" />Cobranças
+          </Button>
+        </div>
       </div>
+
+      {aba === "cobrancas" ? <Cobrancas /> : (
+      <>
+
 
       {/* Resumo */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
