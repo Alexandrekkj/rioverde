@@ -308,6 +308,7 @@ const FILTROS = [
 ];
 
 export default function RadarRecompra() {
+  const [aba, setAba] = useState<"radar" | "cobrancas">("radar");
   const [busca, setBusca] = useState("");
   const [filtro, setFiltro] = useState("todos");
   const [selecionado, setSelecionado] = useState<{ id: string; nome: string } | null>(null);
