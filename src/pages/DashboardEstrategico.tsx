@@ -11,7 +11,7 @@ import {
 } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
-  TrendingDown, DollarSign, AlertTriangle, Package, Trophy,
+  TrendingDown, DollarSign, AlertTriangle, Package, Trophy, Users,
 } from "lucide-react";
 import {
   ChartContainer, ChartTooltip, ChartTooltipContent,
@@ -19,6 +19,7 @@ import {
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
 
 const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+const fmtDate = (d: string | Date) => format(typeof d === "string" ? parseISO(d) : d, "dd/MM/yyyy", { locale: ptBR });
 
 function KpiCard({
   label, value, sub, icon: Icon, highlight, warn, onClick,
@@ -49,7 +50,7 @@ function useVendasPeriodo(inicio: Date, fim: Date, queryKey: string) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("vendas")
-        .select("id, total, data, cliente_id, desconto_geral")
+        .select("id, total, data, cliente_id, desconto_geral, clientes(nome)")
         .gte("data", startOfDay(inicio).toISOString())
         .lte("data", endOfDay(fim).toISOString());
       if (error) throw error;
@@ -89,53 +90,70 @@ function useDespesasPeriodo(inicio: Date, fim: Date, queryKey: string) {
   });
 }
 
-function calcFinanceiro(vendas: any[], itens: any[], despesas: any[]) {
+function calcFinanceiro(vendas: any[], despesas: any[]) {
   const receita = vendas.reduce((s, v) => s + (v.total ?? 0), 0);
-  const custo = itens.reduce((s, i) => {
-    const c = (i.produtos as any)?.preco_custo ?? 0;
-    return s + c * (i.quantidade ?? 1);
-  }, 0);
-  const lucroBruto = receita - custo;
   const totalDespesas = despesas.reduce((s, d) => s + (d.valor ?? 0), 0);
   const qtdVendas = vendas.length;
-  return { receita, custo, lucroBruto, totalDespesas, qtdVendas };
+  return { receita, totalDespesas, qtdVendas };
 }
 
-type RankItem = { produto_id: string; nome: string; quantidade: number; receita: number; lucro: number };
+type RankItem = { produto_id: string; nome: string; quantidade: number; receita: number };
 
 function rankearProdutos(itens: any[]): RankItem[] {
   const map = new Map<string, RankItem>();
   for (const i of itens) {
     const id = i.produto_id;
     const nome = (i.produtos as any)?.nome ?? "Produto removido";
-    const custoUnit = (i.produtos as any)?.preco_custo ?? 0;
     const qtd = i.quantidade ?? 0;
     const receita = (i.preco_unitario ?? 0) * qtd - (i.desconto ?? 0);
-    const lucro = receita - custoUnit * qtd;
-    const prev = map.get(id) ?? { produto_id: id, nome, quantidade: 0, receita: 0, lucro: 0 };
+    const prev = map.get(id) ?? { produto_id: id, nome, quantidade: 0, receita: 0 };
     prev.quantidade += qtd;
     prev.receita += receita;
-    prev.lucro += lucro;
     map.set(id, prev);
   }
   return Array.from(map.values());
 }
 
-function gerarAlertas(fin: ReturnType<typeof calcFinanceiro>): string[] {
-  const alertas: string[] = [];
-  if (fin.totalDespesas > fin.lucroBruto && fin.lucroBruto > 0) alertas.push("Despesas superam o lucro bruto");
-  return alertas;
+type ClienteRank = { cliente_id: string; nome: string; total: number; qtdCompras: number };
+
+function rankearClientes(vendas: any[]): ClienteRank[] {
+  const map = new Map<string, ClienteRank>();
+  for (const v of vendas) {
+    const id = v.cliente_id;
+    const nome = (v.clientes as any)?.nome ?? "Cliente removido";
+    const prev = map.get(id) ?? { cliente_id: id, nome, total: 0, qtdCompras: 0 };
+    prev.total += v.total ?? 0;
+    prev.qtdCompras += 1;
+    map.set(id, prev);
+  }
+  return Array.from(map.values()).sort((a, b) => b.total - a.total);
 }
 
 function PainelGenerico({ inicio, fim, queryKey, despesasPorTipoEnabled = false }: {
   inicio: Date; fim: Date; queryKey: string; despesasPorTipoEnabled?: boolean;
 }) {
   const [rankingOpen, setRankingOpen] = useState<null | "vendido" | "lucrativo">(null);
+  const [produtoDetalhe, setProdutoDetalhe] = useState<RankItem | null>(null);
+  const [clientesOpen, setClientesOpen] = useState(false);
+  const [clienteDetalhe, setClienteDetalhe] = useState<ClienteRank | null>(null);
+
   const { data: vendas = [] } = useVendasPeriodo(inicio, fim, queryKey);
   const { data: itens = [] } = useItensVenda(vendas.map((v: any) => v.id), vendas.length > 0, queryKey);
   const { data: despesas = [] } = useDespesasPeriodo(inicio, fim, queryKey);
-  const fin = useMemo(() => calcFinanceiro(vendas, itens, despesas), [vendas, itens, despesas]);
-  const alertas = useMemo(() => gerarAlertas(fin), [fin]);
+  const fin = useMemo(() => calcFinanceiro(vendas, despesas), [vendas, despesas]);
+
+  const alertas = useMemo(() => {
+    const a: string[] = [];
+    if (fin.totalDespesas > fin.receita && fin.receita > 0) a.push("Despesas superam a receita");
+    return a;
+  }, [fin]);
+
+  // venda lookup -> { cliente_nome, data }
+  const vendaInfo = useMemo(() => {
+    const m = new Map<string, { cliente: string; data: string }>();
+    vendas.forEach((v: any) => m.set(v.id, { cliente: (v.clientes as any)?.nome ?? "—", data: v.data }));
+    return m;
+  }, [vendas]);
 
   const rankProdutos = useMemo(() => rankearProdutos(itens), [itens]);
   const topVendido = useMemo(
@@ -143,9 +161,12 @@ function PainelGenerico({ inicio, fim, queryKey, despesasPorTipoEnabled = false 
     [rankProdutos],
   );
   const topLucrativo = useMemo(
-    () => [...rankProdutos].sort((a, b) => b.lucro - a.lucro)[0] ?? null,
+    () => [...rankProdutos].sort((a, b) => b.receita - a.receita)[0] ?? null,
     [rankProdutos],
   );
+
+  const rankClientes = useMemo(() => rankearClientes(vendas), [vendas]);
+  const topCliente = rankClientes[0] ?? null;
 
   const barData = [
     { name: "Receita", valor: fin.receita, fill: "hsl(var(--primary))" },
@@ -163,9 +184,35 @@ function PainelGenerico({ inicio, fim, queryKey, despesasPorTipoEnabled = false 
   const rankingOrdenado = useMemo(() => {
     if (!rankingOpen) return [];
     return [...rankProdutos].sort((a, b) =>
-      rankingOpen === "vendido" ? b.quantidade - a.quantidade : b.lucro - a.lucro,
+      rankingOpen === "vendido" ? b.quantidade - a.quantidade : b.receita - a.receita,
     );
   }, [rankProdutos, rankingOpen]);
+
+  // Compras do produto selecionado: lista de { cliente, data, quantidade }
+  const comprasProduto = useMemo(() => {
+    if (!produtoDetalhe) return [];
+    return itens
+      .filter((i: any) => i.produto_id === produtoDetalhe.produto_id)
+      .map((i: any) => {
+        const info = vendaInfo.get(i.venda_id);
+        return {
+          cliente: info?.cliente ?? "—",
+          data: info?.data ?? "",
+          quantidade: i.quantidade ?? 0,
+          receita: (i.preco_unitario ?? 0) * (i.quantidade ?? 0) - (i.desconto ?? 0),
+        };
+      })
+      .sort((a, b) => (a.data < b.data ? 1 : -1));
+  }, [produtoDetalhe, itens, vendaInfo]);
+
+  // Compras do cliente selecionado
+  const comprasCliente = useMemo(() => {
+    if (!clienteDetalhe) return [];
+    return vendas
+      .filter((v: any) => v.cliente_id === clienteDetalhe.cliente_id)
+      .map((v: any) => ({ id: v.id, data: v.data, total: v.total ?? 0 }))
+      .sort((a, b) => (a.data < b.data ? 1 : -1));
+  }, [clienteDetalhe, vendas]);
 
   return (
     <div className="space-y-4">
@@ -180,8 +227,8 @@ function PainelGenerico({ inicio, fim, queryKey, despesasPorTipoEnabled = false 
         </Card>
       )}
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <KpiCard label="Receita" value={fmt(fin.receita)} icon={DollarSign} highlight />
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+        <KpiCard label="Receita" value={fmt(fin.receita)} sub={`${fin.qtdVendas} venda(s)`} icon={DollarSign} highlight />
         <KpiCard label="Despesas" value={fmt(fin.totalDespesas)} icon={TrendingDown} warn={fin.totalDespesas > 0} />
         <KpiCard
           label="Mais Vendido"
@@ -193,9 +240,16 @@ function PainelGenerico({ inicio, fim, queryKey, despesasPorTipoEnabled = false 
         <KpiCard
           label="Mais Lucrativo"
           value={topLucrativo?.nome ?? "—"}
-          sub={topLucrativo ? fmt(topLucrativo.lucro) : "Sem vendas"}
+          sub={topLucrativo ? fmt(topLucrativo.receita) : "Sem vendas"}
           icon={Trophy}
           onClick={topLucrativo ? () => setRankingOpen("lucrativo") : undefined}
+        />
+        <KpiCard
+          label="Cliente Top"
+          value={topCliente?.nome ?? "—"}
+          sub={topCliente ? fmt(topCliente.total) : "Sem vendas"}
+          icon={Users}
+          onClick={topCliente ? () => setClientesOpen(true) : undefined}
         />
       </div>
 
@@ -234,12 +288,12 @@ function PainelGenerico({ inicio, fim, queryKey, despesasPorTipoEnabled = false 
         </Card>
       )}
 
-
+      {/* Ranking de produtos */}
       <Dialog open={!!rankingOpen} onOpenChange={(o) => !o && setRankingOpen(null)}>
         <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
-              Ranking — {rankingOpen === "vendido" ? "Mais Vendidos" : "Mais Lucrativos"}
+              Ranking — {rankingOpen === "vendido" ? "Mais Vendidos" : "Maior Receita"}
             </DialogTitle>
           </DialogHeader>
           {rankingOrdenado.length === 0 ? (
@@ -247,24 +301,107 @@ function PainelGenerico({ inicio, fim, queryKey, despesasPorTipoEnabled = false 
           ) : (
             <div className="space-y-1">
               {rankingOrdenado.map((p, idx) => (
-                <div key={p.produto_id} className="flex items-center gap-3 p-2 rounded-md hover:bg-muted/50">
+                <button
+                  key={p.produto_id}
+                  onClick={() => setProdutoDetalhe(p)}
+                  className="w-full flex items-center gap-3 p-2 rounded-md hover:bg-muted/50 text-left"
+                >
                   <div className="w-7 h-7 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold shrink-0">
                     {idx + 1}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate">{p.nome}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {p.quantidade} un • Receita {fmt(p.receita)}
-                    </p>
+                    <p className="text-xs text-muted-foreground">{p.quantidade} un vendidas</p>
                   </div>
                   <div className="text-right shrink-0">
-                    <p className={`text-sm font-bold ${p.lucro >= 0 ? "text-primary" : "text-destructive"}`}>
-                      {fmt(p.lucro)}
-                    </p>
-                    <p className="text-[10px] text-muted-foreground uppercase">lucro</p>
+                    <p className="text-sm font-bold text-primary">{fmt(p.receita)}</p>
+                    <p className="text-[10px] text-muted-foreground uppercase">receita</p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Detalhe de compras por produto */}
+      <Dialog open={!!produtoDetalhe} onOpenChange={(o) => !o && setProdutoDetalhe(null)}>
+        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{produtoDetalhe?.nome} — Compras no período</DialogTitle>
+          </DialogHeader>
+          {comprasProduto.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-8">Nenhuma compra encontrada.</p>
+          ) : (
+            <div className="space-y-1">
+              {comprasProduto.map((c, idx) => (
+                <div key={idx} className="flex items-center justify-between gap-2 p-2 rounded-md hover:bg-muted/50">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium truncate">{c.cliente}</p>
+                    <p className="text-xs text-muted-foreground">{c.data ? fmtDate(c.data) : "—"}</p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="text-sm font-bold">{c.quantidade} un</p>
+                    <p className="text-[10px] text-muted-foreground">{fmt(c.receita)}</p>
                   </div>
                 </div>
               ))}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Ranking de clientes */}
+      <Dialog open={clientesOpen} onOpenChange={setClientesOpen}>
+        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Clientes que mais compraram</DialogTitle>
+          </DialogHeader>
+          {rankClientes.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-8">Sem vendas no período.</p>
+          ) : (
+            <div className="space-y-1">
+              {rankClientes.map((c, idx) => (
+                <button
+                  key={c.cliente_id}
+                  onClick={() => setClienteDetalhe(c)}
+                  className="w-full flex items-center gap-3 p-2 rounded-md hover:bg-muted/50 text-left"
+                >
+                  <div className="w-7 h-7 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold shrink-0">
+                    {idx + 1}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{c.nome}</p>
+                    <p className="text-xs text-muted-foreground">{c.qtdCompras} compra(s)</p>
+                  </div>
+                  <p className="text-sm font-bold text-primary shrink-0">{fmt(c.total)}</p>
+                </button>
+              ))}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Detalhe de compras por cliente */}
+      <Dialog open={!!clienteDetalhe} onOpenChange={(o) => !o && setClienteDetalhe(null)}>
+        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{clienteDetalhe?.nome} — Compras no período</DialogTitle>
+          </DialogHeader>
+          {comprasCliente.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-8">Nenhuma compra.</p>
+          ) : (
+            <div className="space-y-1">
+              {comprasCliente.map((c) => (
+                <div key={c.id} className="flex items-center justify-between gap-2 p-2 rounded-md hover:bg-muted/50">
+                  <p className="text-sm">{fmtDate(c.data)}</p>
+                  <p className="text-sm font-bold text-primary">{fmt(c.total)}</p>
+                </div>
+              ))}
+              <div className="flex items-center justify-between gap-2 p-2 border-t mt-2 pt-3">
+                <p className="text-sm font-semibold">Total</p>
+                <p className="text-sm font-bold">{fmt(clienteDetalhe?.total ?? 0)}</p>
+              </div>
             </div>
           )}
         </DialogContent>
