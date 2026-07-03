@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -7,7 +7,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Radar, Search, Calendar, AlertTriangle, Star, ShoppingBag, Receipt, Phone } from "lucide-react";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Radar, Search, Calendar, AlertTriangle, Star, ShoppingBag, Receipt, Phone, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 const fmtMoney = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -34,6 +39,8 @@ function classifyCobranca(dias: number) {
 function Cobrancas() {
   const [busca, setBusca] = useState("");
   const [filtro, setFiltro] = useState("todos");
+  const [excluir, setExcluir] = useState<CobrancaItem | null>(null);
+  const queryClient = useQueryClient();
 
   const { data: vendas = [] } = useQuery({
     queryKey: ["cobrancas-a-prazo"],
@@ -47,6 +54,21 @@ function Cobrancas() {
       if (error) throw error;
       return data as any[];
     },
+  });
+
+  const excluirMut = useMutation({
+    mutationFn: async (vendaId: string) => {
+      await supabase.from("itens_venda").delete().eq("venda_id", vendaId);
+      const { error } = await supabase.from("vendas").delete().eq("id", vendaId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["cobrancas-a-prazo"] });
+      queryClient.invalidateQueries({ queryKey: ["vendas"] });
+      toast.success("Cobrança excluída!");
+      setExcluir(null);
+    },
+    onError: () => toast.error("Erro ao excluir cobrança"),
   });
 
   const cobrancas: CobrancaItem[] = useMemo(() => {
