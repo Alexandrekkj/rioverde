@@ -14,6 +14,24 @@ export type Database = {
   }
   public: {
     Tables: {
+      bairros: {
+        Row: {
+          created_at: string
+          id: string
+          nome: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          nome: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          nome?: string
+        }
+        Relationships: []
+      }
       cidades: {
         Row: {
           created_at: string
@@ -31,6 +49,44 @@ export type Database = {
           nome?: string
         }
         Relationships: []
+      }
+      cliente_midias: {
+        Row: {
+          cliente_id: string
+          created_at: string
+          id: string
+          nome: string | null
+          storage_path: string | null
+          tipo: string
+          url: string
+        }
+        Insert: {
+          cliente_id: string
+          created_at?: string
+          id?: string
+          nome?: string | null
+          storage_path?: string | null
+          tipo: string
+          url: string
+        }
+        Update: {
+          cliente_id?: string
+          created_at?: string
+          id?: string
+          nome?: string | null
+          storage_path?: string | null
+          tipo?: string
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cliente_midias_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       clientes: {
         Row: {
@@ -249,7 +305,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      unaccent: { Args: { "": string }; Returns: string }
     }
     Enums: {
       [_ in never]: never
