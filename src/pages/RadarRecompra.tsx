@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -7,7 +7,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Radar, Search, Calendar, AlertTriangle, Star, ShoppingBag, Receipt, Phone } from "lucide-react";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Radar, Search, Calendar, AlertTriangle, Star, ShoppingBag, Receipt, Phone, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 const fmtMoney = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -34,6 +39,8 @@ function classifyCobranca(dias: number) {
 function Cobrancas() {
   const [busca, setBusca] = useState("");
   const [filtro, setFiltro] = useState("todos");
+  const [excluir, setExcluir] = useState<CobrancaItem | null>(null);
+  const queryClient = useQueryClient();
 
   const { data: vendas = [] } = useQuery({
     queryKey: ["cobrancas-a-prazo"],
@@ -47,6 +54,21 @@ function Cobrancas() {
       if (error) throw error;
       return data as any[];
     },
+  });
+
+  const excluirMut = useMutation({
+    mutationFn: async (vendaId: string) => {
+      await supabase.from("itens_venda").delete().eq("venda_id", vendaId);
+      const { error } = await supabase.from("vendas").delete().eq("id", vendaId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["cobrancas-a-prazo"] });
+      queryClient.invalidateQueries({ queryKey: ["vendas"] });
+      toast.success("Cobrança excluída!");
+      setExcluir(null);
+    },
+    onError: () => toast.error("Erro ao excluir cobrança"),
   });
 
   const cobrancas: CobrancaItem[] = useMemo(() => {
@@ -174,13 +196,24 @@ function Cobrancas() {
                       </div>
                       <div className="text-sm font-semibold text-primary mt-1.5">{fmtMoney(c.total)}</div>
                     </div>
-                    <div className="text-right">
-                      <div className={cn("text-2xl font-bold leading-none", cls.text)}>
-                        {c.diasRestantes <= 0 ? Math.abs(c.diasRestantes) : c.diasRestantes}
+                    <div className="flex items-start gap-2">
+                      <div className="text-right">
+                        <div className={cn("text-2xl font-bold leading-none", cls.text)}>
+                          {c.diasRestantes <= 0 ? Math.abs(c.diasRestantes) : c.diasRestantes}
+                        </div>
+                        <div className="text-[10px] uppercase tracking-wider text-muted-foreground mt-0.5">
+                          {c.diasRestantes <= 0 ? (c.diasRestantes === 0 ? "vence hoje" : "dias atraso") : "dias restantes"}
+                        </div>
                       </div>
-                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground mt-0.5">
-                        {c.diasRestantes <= 0 ? (c.diasRestantes === 0 ? "vence hoje" : "dias atraso") : "dias restantes"}
-                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 shrink-0"
+                        onClick={() => setExcluir(c)}
+                        aria-label="Excluir cobrança"
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
                     </div>
                   </div>
                 </CardContent>
@@ -189,6 +222,28 @@ function Cobrancas() {
           })
         )}
       </div>
+
+      <AlertDialog open={!!excluir} onOpenChange={(o) => !o && setExcluir(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir cobrança?</AlertDialogTitle>
+            <AlertDialogDescription>
+              A venda a prazo de <strong>{excluir?.clienteNome}</strong> no valor de{" "}
+              <strong>{excluir ? fmtMoney(excluir.total) : ""}</strong> será removida permanentemente.
+              Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => excluir && excluirMut.mutate(excluir.vendaId)}
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
