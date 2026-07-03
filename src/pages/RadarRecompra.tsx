@@ -196,13 +196,24 @@ function Cobrancas() {
                       </div>
                       <div className="text-sm font-semibold text-primary mt-1.5">{fmtMoney(c.total)}</div>
                     </div>
-                    <div className="text-right">
-                      <div className={cn("text-2xl font-bold leading-none", cls.text)}>
-                        {c.diasRestantes <= 0 ? Math.abs(c.diasRestantes) : c.diasRestantes}
+                    <div className="flex items-start gap-2">
+                      <div className="text-right">
+                        <div className={cn("text-2xl font-bold leading-none", cls.text)}>
+                          {c.diasRestantes <= 0 ? Math.abs(c.diasRestantes) : c.diasRestantes}
+                        </div>
+                        <div className="text-[10px] uppercase tracking-wider text-muted-foreground mt-0.5">
+                          {c.diasRestantes <= 0 ? (c.diasRestantes === 0 ? "vence hoje" : "dias atraso") : "dias restantes"}
+                        </div>
                       </div>
-                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground mt-0.5">
-                        {c.diasRestantes <= 0 ? (c.diasRestantes === 0 ? "vence hoje" : "dias atraso") : "dias restantes"}
-                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 shrink-0"
+                        onClick={() => setExcluir(c)}
+                        aria-label="Excluir cobrança"
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
                     </div>
                   </div>
                 </CardContent>
@@ -211,6 +222,28 @@ function Cobrancas() {
           })
         )}
       </div>
+
+      <AlertDialog open={!!excluir} onOpenChange={(o) => !o && setExcluir(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir cobrança?</AlertDialogTitle>
+            <AlertDialogDescription>
+              A venda a prazo de <strong>{excluir?.clienteNome}</strong> no valor de{" "}
+              <strong>{excluir ? fmtMoney(excluir.total) : ""}</strong> será removida permanentemente.
+              Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => excluir && excluirMut.mutate(excluir.vendaId)}
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
