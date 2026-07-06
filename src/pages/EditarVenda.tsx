@@ -33,11 +33,14 @@ export default function EditarVenda() {
   const [formaPagamento, setFormaPagamento] = useState("dinheiro");
   const [prazoDias, setPrazoDias] = useState<number | null>(null);
   const [dataVenda, setDataVenda] = useState(""); // new state for sale date
+  const [vendedoresSel, setVendedoresSel] = useState<string[]>([]);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
   const { data: clientes = [] } = useQuery({ queryKey: ["clientes"], queryFn: async () => { const { data, error } = await supabase.from("clientes").select("*").order("nome"); if (error) throw error; return data; } });
   const { data: produtos = [] } = useQuery({ queryKey: ["produtos"], queryFn: async () => { const { data, error } = await supabase.from("produtos").select("*").order("nome"); if (error) throw error; return data; } });
+  const { data: vendedores = [] } = useQuery({ queryKey: ["vendedores"], queryFn: async () => { const { data, error } = await (supabase as any).from("vendedores").select("*").order("nome"); if (error) throw error; return data as { id: string; nome: string }[]; } });
+  const { data: vendedoresVenda = [] } = useQuery({ queryKey: ["venda-vendedores", id], enabled: !!id, queryFn: async () => { const { data, error } = await (supabase as any).from("venda_vendedores").select("vendedor_id").eq("venda_id", id!); if (error) throw error; return data as { vendedor_id: string }[]; } });
 
   const { data: venda, isLoading } = useQuery({
     queryKey: ["venda", id],
