@@ -380,19 +380,20 @@ function classify(dias: number | null) {
 }
 
 const FILTROS = [
+  { value: "", label: "Selecione um tipo…" },
+  { value: "15-24", label: "🟢 Verde (15-24 dias)" },
+  { value: "25-34", label: "🟡 Amarelo (25-34 dias)" },
+  { value: "35+", label: "🔴 Vermelho (35+ dias)" },
   { value: "todos", label: "Todos" },
   { value: "ativos", label: "Ativos" },
   { value: "inativos", label: "Inativos" },
   { value: "0-14", label: "0-14 dias" },
-  { value: "15-24", label: "15-24 dias (verde)" },
-  { value: "25-34", label: "25-34 dias (amarelo)" },
-  { value: "35+", label: "35+ dias (vermelho)" },
 ];
 
 export default function RadarRecompra() {
   const [aba, setAba] = useState<"radar" | "cobrancas">("radar");
   const [busca, setBusca] = useState("");
-  const [filtro, setFiltro] = useState("todos");
+  const [filtro, setFiltro] = useState("");
   const [selecionado, setSelecionado] = useState<{ id: string; nome: string } | null>(null);
 
   const { data: clientes = [] } = useQuery({
