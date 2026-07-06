@@ -169,6 +169,7 @@ function PainelGenerico({ inicio, fim, queryKey, despesasPorTipoEnabled = false 
   const [produtoDetalhe, setProdutoDetalhe] = useState<RankItem | null>(null);
   const [clientesOpen, setClientesOpen] = useState(false);
   const [clienteDetalhe, setClienteDetalhe] = useState<ClienteRank | null>(null);
+  const [vendedoresOpen, setVendedoresOpen] = useState(false);
 
   const { data: vendas = [] } = useVendasPeriodo(inicio, fim, queryKey);
   const { data: itens = [] } = useItensVenda(vendas.map((v: any) => v.id), vendas.length > 0, queryKey);
@@ -200,6 +201,11 @@ function PainelGenerico({ inicio, fim, queryKey, despesasPorTipoEnabled = false 
 
   const rankClientes = useMemo(() => rankearClientes(vendas), [vendas]);
   const topCliente = rankClientes[0] ?? null;
+
+  const rankVendedores = useMemo(() => rankearVendedores(vendas), [vendas]);
+  const topVendedor = rankVendedores[0] ?? null;
+  const podioVendedores = useMemo(() => rankVendedores.filter((v) => v.posicao <= 3), [rankVendedores]);
+
 
   const barData = [
     { name: "Receita", valor: fin.receita, fill: "hsl(var(--primary))" },
