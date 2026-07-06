@@ -426,6 +426,7 @@ export default function RadarRecompra() {
   }, [clientes]);
 
   const filtrados = useMemo(() => {
+    if (!filtro) return [];
     const q = busca.trim().toLowerCase();
     return radar
       .filter((r) => (q ? r.nome.toLowerCase().includes(q) : true))
