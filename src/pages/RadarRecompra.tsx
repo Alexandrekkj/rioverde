@@ -494,52 +494,66 @@ export default function RadarRecompra() {
       <>
 
 
-      {/* Resumo */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-        <Card><CardContent className="p-4">
-          <div className="flex items-center gap-2 text-xs text-muted-foreground"><span className="h-2 w-2 rounded-full bg-emerald-500" />Ativos</div>
-          <div className="text-2xl font-bold mt-1 text-emerald-600">{counts.ativos}</div>
-        </CardContent></Card>
-        <Card><CardContent className="p-4">
-          <div className="flex items-center gap-2 text-xs text-muted-foreground"><span className="h-2 w-2 rounded-full bg-muted-foreground" />Inativos</div>
-          <div className="text-2xl font-bold mt-1">{counts.inativos}</div>
-        </CardContent></Card>
-        <Card><CardContent className="p-4">
-          <div className="flex items-center gap-2 text-xs text-muted-foreground"><span className="h-2 w-2 rounded-full bg-emerald-500" />Verde (15+ dias)</div>
-          <div className="text-2xl font-bold mt-1">{counts.verde}</div>
-        </CardContent></Card>
-        <Card><CardContent className="p-4">
-          <div className="flex items-center gap-2 text-xs text-muted-foreground"><span className="h-2 w-2 rounded-full bg-amber-500" />Amarelo (25+ dias)</div>
-          <div className="text-2xl font-bold mt-1">{counts.amarelo}</div>
-        </CardContent></Card>
-        <Card><CardContent className="p-4">
-          <div className="flex items-center gap-2 text-xs text-muted-foreground"><span className="h-2 w-2 rounded-full bg-red-500" />Vermelho (35+ dias)</div>
-          <div className="text-2xl font-bold mt-1 text-red-600">{counts.vermelho}</div>
-        </CardContent></Card>
+      {/* Resumo — clique para filtrar */}
+      <div className="grid grid-cols-3 gap-3">
+        <Card
+          onClick={() => setFiltro("15-24")}
+          className={cn("cursor-pointer transition-all hover:shadow-md", filtro === "15-24" && "ring-2 ring-emerald-500")}
+        >
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground"><span className="h-2 w-2 rounded-full bg-emerald-500" />Verde (15-24 dias)</div>
+            <div className="text-2xl font-bold mt-1 text-emerald-600">{counts.verde}</div>
+          </CardContent>
+        </Card>
+        <Card
+          onClick={() => setFiltro("25-34")}
+          className={cn("cursor-pointer transition-all hover:shadow-md", filtro === "25-34" && "ring-2 ring-amber-500")}
+        >
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground"><span className="h-2 w-2 rounded-full bg-amber-500" />Amarelo (25-34 dias)</div>
+            <div className="text-2xl font-bold mt-1 text-amber-600">{counts.amarelo}</div>
+          </CardContent>
+        </Card>
+        <Card
+          onClick={() => setFiltro("35+")}
+          className={cn("cursor-pointer transition-all hover:shadow-md", filtro === "35+" && "ring-2 ring-red-500")}
+        >
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground"><span className="h-2 w-2 rounded-full bg-red-500" />Vermelho (35+ dias)</div>
+            <div className="text-2xl font-bold mt-1 text-red-600">{counts.vermelho}</div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Filtros */}
-      <div className="flex flex-col sm:flex-row gap-2">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar cliente pelo nome..."
-            value={busca}
-            onChange={(e) => setBusca(e.target.value)}
-            className="pl-9"
-          />
+      {filtro && (
+        <div className="flex flex-col sm:flex-row gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar cliente pelo nome..."
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+          <Select value={filtro} onValueChange={setFiltro}>
+            <SelectTrigger className="w-full sm:w-64"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {FILTROS.filter((f) => f.value).map((f) => (<SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>))}
+            </SelectContent>
+          </Select>
+          <Button variant="outline" size="sm" onClick={() => setFiltro("")}>Limpar</Button>
         </div>
-        <Select value={filtro} onValueChange={setFiltro}>
-          <SelectTrigger className="w-full sm:w-64"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            {FILTROS.map((f) => (<SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>))}
-          </SelectContent>
-        </Select>
-      </div>
+      )}
 
       {/* Lista */}
       <div className="space-y-2">
-        {filtrados.length === 0 ? (
+        {!filtro ? (
+          <Card><CardContent className="p-8 text-center text-sm text-muted-foreground">
+            Selecione uma categoria acima (🟢 Verde, 🟡 Amarelo ou 🔴 Vermelho) para visualizar os clientes.
+          </CardContent></Card>
+        ) : filtrados.length === 0 ? (
           <Card><CardContent className="p-6 text-center text-sm text-muted-foreground">
             Nenhum cliente encontrado para o filtro selecionado.
           </CardContent></Card>
