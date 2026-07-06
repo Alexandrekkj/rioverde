@@ -2,16 +2,15 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
-  format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, parseISO,
+  format, startOfDay, endOfDay, startOfMonth, parseISO,
 } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
-  TrendingDown, DollarSign, AlertTriangle, Package, Trophy, Users,
+  TrendingDown, DollarSign, AlertTriangle, Package, Trophy, Users, Medal,
 } from "lucide-react";
 import {
   ChartContainer, ChartTooltip, ChartTooltipContent,
@@ -50,7 +49,7 @@ function useVendasPeriodo(inicio: Date, fim: Date, queryKey: string) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("vendas")
-        .select("id, total, data, cliente_id, desconto_geral, clientes(nome)")
+        .select("id, total, data, cliente_id, desconto_geral, clientes(nome), venda_vendedores(vendedor_id, vendedores(nome))")
         .gte("data", startOfDay(inicio).toISOString())
         .lte("data", endOfDay(fim).toISOString());
       if (error) throw error;
@@ -127,6 +126,40 @@ function rankearClientes(vendas: any[]): ClienteRank[] {
     map.set(id, prev);
   }
   return Array.from(map.values()).sort((a, b) => b.total - a.total);
+}
+
+type VendedorRank = { vendedor_id: string; nome: string; total: number; qtdVendas: number; posicao: number };
+
+function rankearVendedores(vendas: any[]): VendedorRank[] {
+  const map = new Map<string, { nome: string; total: number; qtd: number }>();
+  for (const v of vendas) {
+    const vvs = (v.venda_vendedores as any[]) ?? [];
+    if (vvs.length === 0) continue;
+    // Split the sale value equally among the associated sellers
+    const share = (v.total ?? 0) / vvs.length;
+    for (const vv of vvs) {
+      const id = vv.vendedor_id;
+      const nome = vv.vendedores?.nome ?? "—";
+      const prev = map.get(id) ?? { nome, total: 0, qtd: 0 };
+      prev.total += share;
+      prev.qtd += 1;
+      map.set(id, prev);
+    }
+  }
+  const arr = Array.from(map.entries())
+    .map(([vendedor_id, v]) => ({ vendedor_id, nome: v.nome, total: v.total, qtdVendas: v.qtd, posicao: 0 }))
+    .sort((a, b) => b.total - a.total);
+  // Dense ranking (ties share the same position)
+  let lastTotal = -1;
+  let lastPos = 0;
+  arr.forEach((r, i) => {
+    if (i === 0 || r.total !== lastTotal) {
+      lastPos = i + 1;
+      lastTotal = r.total;
+    }
+    r.posicao = lastPos;
+  });
+  return arr;
 }
 
 function PainelGenerico({ inicio, fim, queryKey, despesasPorTipoEnabled = false }: {
