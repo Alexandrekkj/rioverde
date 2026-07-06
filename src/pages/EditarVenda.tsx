@@ -68,6 +68,7 @@ export default function EditarVenda() {
     }
   }, [venda]);
   useEffect(() => { if (itensExistentes.length > 0) { setItens(itensExistentes.map((i: any) => ({ produto_id: i.produto_id, nome: i.produtos?.nome ?? "Produto removido", quantidade: i.quantidade, preco_unitario: i.preco_unitario, desconto: i.desconto }))); } }, [itensExistentes]);
+  useEffect(() => { setVendedoresSel(vendedoresVenda.map((v) => v.vendedor_id)); }, [vendedoresVenda]);
 
   const salvarVenda = useMutation({
     mutationFn: async () => {
@@ -88,6 +89,13 @@ export default function EditarVenda() {
       const itensInsert = itens.map((i) => ({ venda_id: id!, produto_id: i.produto_id, quantidade: i.quantidade, preco_unitario: i.preco_unitario, desconto: i.desconto }));
       const { error: err2 } = await supabase.from("itens_venda").insert(itensInsert);
       if (err2) throw err2;
+      const { error: delVV } = await (supabase as any).from("venda_vendedores").delete().eq("venda_id", id!);
+      if (delVV) throw delVV;
+      if (vendedoresSel.length > 0) {
+        const vvInsert = vendedoresSel.map((vid) => ({ venda_id: id!, vendedor_id: vid }));
+        const { error: err3 } = await (supabase as any).from("venda_vendedores").insert(vvInsert);
+        if (err3) throw err3;
+      }
     },
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["vendas"] }); queryClient.invalidateQueries({ queryKey: ["venda", id] }); toast.success("Venda atualizada com sucesso!"); navigate("/vendas"); },
     onError: (e) => toast.error(e.message || "Erro ao salvar venda"),
