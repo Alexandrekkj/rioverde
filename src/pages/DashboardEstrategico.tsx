@@ -483,6 +483,32 @@ function PainelGenerico({ inicio, fim, queryKey, despesasPorTipoEnabled = false 
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Ranking completo de vendedores */}
+      <Dialog open={vendedoresOpen} onOpenChange={setVendedoresOpen}>
+        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Ranking de Vendedores</DialogTitle>
+          </DialogHeader>
+          {rankVendedores.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-8">Nenhuma venda com vendedor no período.</p>
+          ) : (
+            <div className="space-y-1">
+              {rankVendedores.map((v) => (
+                <div key={v.vendedor_id} className="flex items-center gap-3 p-2 rounded-md hover:bg-muted/50">
+                  <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold shrink-0">
+                    {v.posicao}º
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{v.nome}</p>
+                    <p className="text-xs text-muted-foreground">{v.qtdVendas} venda(s)</p>
+                  </div>
+                  <p className="text-sm font-bold text-primary shrink-0">{fmt(v.total)}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </DialogContent>
     </div>
   );
 }
