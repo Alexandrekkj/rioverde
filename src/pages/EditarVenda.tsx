@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Trash2, Save, ArrowLeft } from "lucide-react";
+import { Trash2, Save, ArrowLeft, Check } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate, useParams } from "react-router-dom";
 import { format, parseISO } from "date-fns";
@@ -157,6 +157,28 @@ export default function EditarVenda() {
           <div className="flex items-center gap-3">
             <Label className="text-xs whitespace-nowrap font-medium">Data da Venda</Label>
             <Input type="datetime-local" className="h-9" value={dataVenda} onChange={(e) => setDataVenda(e.target.value)} />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="card-interactive">
+        <CardHeader className="pb-3"><CardTitle className="text-sm font-semibold">Vendedor(es)</CardTitle></CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap gap-2">
+            {vendedores.map((v) => {
+              const active = vendedoresSel.includes(v.id);
+              return (
+                <Button
+                  key={v.id}
+                  type="button"
+                  variant={active ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setVendedoresSel(active ? vendedoresSel.filter((x) => x !== v.id) : [...vendedoresSel, v.id])}
+                >
+                  {active && <Check className="mr-1.5 h-3.5 w-3.5" />}{v.nome}
+                </Button>
+              );
+            })}
           </div>
         </CardContent>
       </Card>
