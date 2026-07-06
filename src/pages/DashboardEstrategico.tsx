@@ -509,6 +509,7 @@ function PainelGenerico({ inicio, fim, queryKey, despesasPorTipoEnabled = false 
             </div>
           )}
         </DialogContent>
+      </Dialog>
     </div>
   );
 }
