@@ -212,6 +212,30 @@ export default function NovaVenda() {
         </CardContent>
       </Card>
 
+      {/* Vendedores */}
+      <Card className="card-interactive">
+        <CardHeader className="pb-3"><CardTitle className="text-sm font-semibold">Vendedor(es)</CardTitle></CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap gap-2">
+            {vendedores.map((v) => {
+              const active = vendedoresSel.includes(v.id);
+              return (
+                <Button
+                  key={v.id}
+                  type="button"
+                  variant={active ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setVendedoresSel(active ? vendedoresSel.filter((x) => x !== v.id) : [...vendedoresSel, v.id])}
+                >
+                  {active && <Check className="mr-1.5 h-3.5 w-3.5" />}{v.nome}
+                </Button>
+              );
+            })}
+          </div>
+          <p className="text-[11px] text-muted-foreground mt-2">Selecione um ou mais vendedores responsáveis por esta venda.</p>
+        </CardContent>
+      </Card>
+
       {/* Produtos */}
       <Card className="card-interactive">
         <CardHeader className="pb-3"><CardTitle className="text-sm font-semibold">Produtos</CardTitle></CardHeader>
