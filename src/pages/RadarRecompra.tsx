@@ -11,7 +11,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Radar, Search, Calendar, AlertTriangle, Star, ShoppingBag, Receipt, Phone, Trash2 } from "lucide-react";
+import { Radar, Search, Calendar, AlertTriangle, Star, ShoppingBag, Receipt, Phone, Trash2, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -47,13 +47,29 @@ function Cobrancas() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("vendas")
-        .select("id, data, total, prazo_dias, cliente_id, clientes(id, nome, telefone)")
+        .select("id, data, total, prazo_dias, cliente_id, paga, clientes(id, nome, telefone)")
         .eq("forma_pagamento", "a_prazo")
+        .eq("paga", false)
         .not("prazo_dias", "is", null)
         .order("data", { ascending: false });
       if (error) throw error;
       return data as any[];
     },
+  });
+
+  const pagarMut = useMutation({
+    mutationFn: async (vendaId: string) => {
+      const { error } = await supabase
+        .from("vendas")
+        .update({ paga: true, paga_em: new Date().toISOString() })
+        .eq("id", vendaId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["cobrancas-a-prazo"] });
+      toast.success("Cobrança marcada como paga!");
+    },
+    onError: () => toast.error("Erro ao registrar pagamento"),
   });
 
   const excluirMut = useMutation({
