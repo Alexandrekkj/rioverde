@@ -224,6 +224,17 @@ function Cobrancas() {
                       <Button
                         variant="ghost"
                         size="icon"
+                        className="h-8 w-8 shrink-0 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950"
+                        onClick={() => pagarMut.mutate(c.vendaId)}
+                        disabled={pagarMut.isPending}
+                        aria-label="Marcar como paga"
+                        title="Marcar como paga"
+                      >
+                        <CheckCircle2 className="h-5 w-5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
                         className="h-8 w-8 shrink-0"
                         onClick={() => setExcluir(c)}
                         aria-label="Excluir cobrança"
