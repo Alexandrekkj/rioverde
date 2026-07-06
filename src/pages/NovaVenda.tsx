@@ -105,6 +105,11 @@ export default function NovaVenda() {
       const itensInsert = itens.map((i) => ({ venda_id: venda.id, produto_id: i.produto_id, quantidade: i.quantidade, preco_unitario: i.preco_unitario, desconto: i.desconto }));
       const { error: err2 } = await supabase.from("itens_venda").insert(itensInsert);
       if (err2) throw err2;
+      if (vendedoresSel.length > 0) {
+        const vvInsert = vendedoresSel.map((vid) => ({ venda_id: venda.id, vendedor_id: vid }));
+        const { error: err3 } = await (supabase as any).from("venda_vendedores").insert(vvInsert);
+        if (err3) throw err3;
+      }
     },
     onSuccess: () => { toast.success("Venda salva com sucesso!"); navigate("/vendas"); },
     onError: () => toast.error("Erro ao salvar venda. Verifique os dados e tente novamente."),
