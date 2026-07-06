@@ -43,11 +43,21 @@ export default function NovaVenda() {
   const [formaPagamento, setFormaPagamento] = useState("dinheiro");
   const [prazoDias, setPrazoDias] = useState<number | null>(null);
   const [dataVenda, setDataVenda] = useState<string>(hojeISO());
+  const [vendedoresSel, setVendedoresSel] = useState<string[]>([]);
   const [novoClienteOpen, setNovoClienteOpen] = useState(false);
   const [clienteOpen, setClienteOpen] = useState(false);
   const [produtoOpen, setProdutoOpen] = useState(false);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+
+  const { data: vendedores = [] } = useQuery({
+    queryKey: ["vendedores"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).from("vendedores").select("*").order("nome");
+      if (error) throw error;
+      return data as { id: string; nome: string }[];
+    },
+  });
 
 
   const { data: clientes = [] } = useQuery({
