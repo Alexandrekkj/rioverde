@@ -2,16 +2,15 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
-  format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, parseISO,
+  format, startOfDay, endOfDay, startOfMonth, parseISO,
 } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
-  TrendingDown, DollarSign, AlertTriangle, Package, Trophy, Users,
+  TrendingDown, DollarSign, AlertTriangle, Package, Trophy, Users, Medal,
 } from "lucide-react";
 import {
   ChartContainer, ChartTooltip, ChartTooltipContent,
@@ -50,7 +49,7 @@ function useVendasPeriodo(inicio: Date, fim: Date, queryKey: string) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("vendas")
-        .select("id, total, data, cliente_id, desconto_geral, clientes(nome)")
+        .select("id, total, data, cliente_id, desconto_geral, clientes(nome), venda_vendedores(vendedor_id, vendedores(nome))")
         .gte("data", startOfDay(inicio).toISOString())
         .lte("data", endOfDay(fim).toISOString());
       if (error) throw error;
@@ -129,6 +128,40 @@ function rankearClientes(vendas: any[]): ClienteRank[] {
   return Array.from(map.values()).sort((a, b) => b.total - a.total);
 }
 
+type VendedorRank = { vendedor_id: string; nome: string; total: number; qtdVendas: number; posicao: number };
+
+function rankearVendedores(vendas: any[]): VendedorRank[] {
+  const map = new Map<string, { nome: string; total: number; qtd: number }>();
+  for (const v of vendas) {
+    const vvs = (v.venda_vendedores as any[]) ?? [];
+    if (vvs.length === 0) continue;
+    // Split the sale value equally among the associated sellers
+    const share = (v.total ?? 0) / vvs.length;
+    for (const vv of vvs) {
+      const id = vv.vendedor_id;
+      const nome = vv.vendedores?.nome ?? "—";
+      const prev = map.get(id) ?? { nome, total: 0, qtd: 0 };
+      prev.total += share;
+      prev.qtd += 1;
+      map.set(id, prev);
+    }
+  }
+  const arr = Array.from(map.entries())
+    .map(([vendedor_id, v]) => ({ vendedor_id, nome: v.nome, total: v.total, qtdVendas: v.qtd, posicao: 0 }))
+    .sort((a, b) => b.total - a.total);
+  // Dense ranking (ties share the same position)
+  let lastTotal = -1;
+  let lastPos = 0;
+  arr.forEach((r, i) => {
+    if (i === 0 || r.total !== lastTotal) {
+      lastPos = i + 1;
+      lastTotal = r.total;
+    }
+    r.posicao = lastPos;
+  });
+  return arr;
+}
+
 function PainelGenerico({ inicio, fim, queryKey, despesasPorTipoEnabled = false }: {
   inicio: Date; fim: Date; queryKey: string; despesasPorTipoEnabled?: boolean;
 }) {
@@ -136,6 +169,7 @@ function PainelGenerico({ inicio, fim, queryKey, despesasPorTipoEnabled = false 
   const [produtoDetalhe, setProdutoDetalhe] = useState<RankItem | null>(null);
   const [clientesOpen, setClientesOpen] = useState(false);
   const [clienteDetalhe, setClienteDetalhe] = useState<ClienteRank | null>(null);
+  const [vendedoresOpen, setVendedoresOpen] = useState(false);
 
   const { data: vendas = [] } = useVendasPeriodo(inicio, fim, queryKey);
   const { data: itens = [] } = useItensVenda(vendas.map((v: any) => v.id), vendas.length > 0, queryKey);
@@ -167,6 +201,11 @@ function PainelGenerico({ inicio, fim, queryKey, despesasPorTipoEnabled = false 
 
   const rankClientes = useMemo(() => rankearClientes(vendas), [vendas]);
   const topCliente = rankClientes[0] ?? null;
+
+  const rankVendedores = useMemo(() => rankearVendedores(vendas), [vendas]);
+  const topVendedor = rankVendedores[0] ?? null;
+  const podioVendedores = useMemo(() => rankVendedores.filter((v) => v.posicao <= 3), [rankVendedores]);
+
 
   const barData = [
     { name: "Receita", valor: fin.receita, fill: "hsl(var(--primary))" },
@@ -251,7 +290,45 @@ function PainelGenerico({ inicio, fim, queryKey, despesasPorTipoEnabled = false 
           icon={Users}
           onClick={topCliente ? () => setClientesOpen(true) : undefined}
         />
+        <KpiCard
+          label="Vendedor Top"
+          value={topVendedor?.nome ?? "—"}
+          sub={topVendedor ? fmt(topVendedor.total) : "Sem vendas"}
+          icon={Medal}
+          onClick={topVendedor ? () => setVendedoresOpen(true) : undefined}
+        />
       </div>
+
+      {/* Pódio de Vendedores */}
+      {podioVendedores.length > 0 && (
+        <Card className="card-interactive">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-semibold flex items-center gap-2">
+              <Medal className="h-4 w-4 text-primary" />Vendedor Top Performance
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {podioVendedores.map((v) => {
+                const cores = ["bg-amber-400 text-amber-950", "bg-slate-300 text-slate-900", "bg-orange-400 text-orange-950"];
+                const cor = cores[v.posicao - 1] ?? "bg-muted text-muted-foreground";
+                return (
+                  <div key={v.vendedor_id} className="flex items-center gap-3 p-2 rounded-lg border border-border">
+                    <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold shrink-0 ${cor}`}>
+                      {v.posicao}º
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold truncate">{v.nome}</p>
+                      <p className="text-[11px] text-muted-foreground">{v.qtdVendas} venda(s)</p>
+                    </div>
+                    <p className="text-sm font-bold text-primary">{fmt(v.total)}</p>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <Card className="card-interactive">
         <CardHeader className="pb-2">
@@ -406,6 +483,33 @@ function PainelGenerico({ inicio, fim, queryKey, despesasPorTipoEnabled = false 
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Ranking completo de vendedores */}
+      <Dialog open={vendedoresOpen} onOpenChange={setVendedoresOpen}>
+        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Ranking de Vendedores</DialogTitle>
+          </DialogHeader>
+          {rankVendedores.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-8">Nenhuma venda com vendedor no período.</p>
+          ) : (
+            <div className="space-y-1">
+              {rankVendedores.map((v) => (
+                <div key={v.vendedor_id} className="flex items-center gap-3 p-2 rounded-md hover:bg-muted/50">
+                  <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold shrink-0">
+                    {v.posicao}º
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{v.nome}</p>
+                    <p className="text-xs text-muted-foreground">{v.qtdVendas} venda(s)</p>
+                  </div>
+                  <p className="text-sm font-bold text-primary shrink-0">{fmt(v.total)}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -440,38 +544,13 @@ function PainelPersonalizado() {
 }
 
 export default function DashboardEstrategico() {
-  const hoje = new Date();
-  const inicioSemana = startOfWeek(hoje, { locale: ptBR });
-  const fimSemana = endOfWeek(hoje, { locale: ptBR });
-  const inicioMes = startOfMonth(hoje);
-  const fimMes = endOfMonth(hoje);
-
   return (
     <div className="space-y-5">
       <div>
         <h1 className="heading-gradient text-2xl md:text-3xl">Dashboard Estratégico</h1>
         <p className="text-xs text-muted-foreground mt-1 font-medium">Visão financeira por período</p>
       </div>
-      <Tabs defaultValue="diario">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="diario">Diário</TabsTrigger>
-          <TabsTrigger value="semanal">Semanal</TabsTrigger>
-          <TabsTrigger value="mensal">Mensal</TabsTrigger>
-          <TabsTrigger value="custom">Personalizado</TabsTrigger>
-        </TabsList>
-        <TabsContent value="diario" className="mt-4">
-          <PainelGenerico inicio={hoje} fim={hoje} queryKey="diario" />
-        </TabsContent>
-        <TabsContent value="semanal" className="mt-4">
-          <PainelGenerico inicio={inicioSemana} fim={fimSemana} queryKey="semanal" despesasPorTipoEnabled />
-        </TabsContent>
-        <TabsContent value="mensal" className="mt-4">
-          <PainelGenerico inicio={inicioMes} fim={fimMes} queryKey="mensal" despesasPorTipoEnabled />
-        </TabsContent>
-        <TabsContent value="custom" className="mt-4">
-          <PainelPersonalizado />
-        </TabsContent>
-      </Tabs>
+      <PainelPersonalizado />
     </div>
   );
 }

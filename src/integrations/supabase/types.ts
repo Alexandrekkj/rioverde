@@ -259,6 +259,42 @@ export type Database = {
         }
         Relationships: []
       }
+      venda_vendedores: {
+        Row: {
+          created_at: string
+          id: string
+          venda_id: string
+          vendedor_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          venda_id: string
+          vendedor_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          venda_id?: string
+          vendedor_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "venda_vendedores_venda_id_fkey"
+            columns: ["venda_id"]
+            isOneToOne: false
+            referencedRelation: "vendas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "venda_vendedores_vendedor_id_fkey"
+            columns: ["vendedor_id"]
+            isOneToOne: false
+            referencedRelation: "vendedores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vendas: {
         Row: {
           cliente_id: string
@@ -267,6 +303,8 @@ export type Database = {
           desconto_geral: number
           forma_pagamento: string
           id: string
+          paga: boolean
+          paga_em: string | null
           prazo_dias: number | null
           total: number
         }
@@ -277,6 +315,8 @@ export type Database = {
           desconto_geral?: number
           forma_pagamento?: string
           id?: string
+          paga?: boolean
+          paga_em?: string | null
           prazo_dias?: number | null
           total?: number
         }
@@ -287,6 +327,8 @@ export type Database = {
           desconto_geral?: number
           forma_pagamento?: string
           id?: string
+          paga?: boolean
+          paga_em?: string | null
           prazo_dias?: number | null
           total?: number
         }
@@ -299,6 +341,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      vendedores: {
+        Row: {
+          created_at: string
+          id: string
+          nome: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          nome: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          nome?: string
+        }
+        Relationships: []
       }
     }
     Views: {

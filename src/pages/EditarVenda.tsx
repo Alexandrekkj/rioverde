@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Trash2, Save, ArrowLeft } from "lucide-react";
+import { Trash2, Save, ArrowLeft, Check } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate, useParams } from "react-router-dom";
 import { format, parseISO } from "date-fns";
@@ -33,11 +33,14 @@ export default function EditarVenda() {
   const [formaPagamento, setFormaPagamento] = useState("dinheiro");
   const [prazoDias, setPrazoDias] = useState<number | null>(null);
   const [dataVenda, setDataVenda] = useState(""); // new state for sale date
+  const [vendedoresSel, setVendedoresSel] = useState<string[]>([]);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
   const { data: clientes = [] } = useQuery({ queryKey: ["clientes"], queryFn: async () => { const { data, error } = await supabase.from("clientes").select("*").order("nome"); if (error) throw error; return data; } });
   const { data: produtos = [] } = useQuery({ queryKey: ["produtos"], queryFn: async () => { const { data, error } = await supabase.from("produtos").select("*").order("nome"); if (error) throw error; return data; } });
+  const { data: vendedores = [] } = useQuery({ queryKey: ["vendedores"], queryFn: async () => { const { data, error } = await (supabase as any).from("vendedores").select("*").order("nome"); if (error) throw error; return data as { id: string; nome: string }[]; } });
+  const { data: vendedoresVenda = [] } = useQuery({ queryKey: ["venda-vendedores", id], enabled: !!id, queryFn: async () => { const { data, error } = await (supabase as any).from("venda_vendedores").select("vendedor_id").eq("venda_id", id!); if (error) throw error; return data as { vendedor_id: string }[]; } });
 
   const { data: venda, isLoading } = useQuery({
     queryKey: ["venda", id],
@@ -65,6 +68,7 @@ export default function EditarVenda() {
     }
   }, [venda]);
   useEffect(() => { if (itensExistentes.length > 0) { setItens(itensExistentes.map((i: any) => ({ produto_id: i.produto_id, nome: i.produtos?.nome ?? "Produto removido", quantidade: i.quantidade, preco_unitario: i.preco_unitario, desconto: i.desconto }))); } }, [itensExistentes]);
+  useEffect(() => { setVendedoresSel(vendedoresVenda.map((v) => v.vendedor_id)); }, [vendedoresVenda]);
 
   const salvarVenda = useMutation({
     mutationFn: async () => {
@@ -85,6 +89,13 @@ export default function EditarVenda() {
       const itensInsert = itens.map((i) => ({ venda_id: id!, produto_id: i.produto_id, quantidade: i.quantidade, preco_unitario: i.preco_unitario, desconto: i.desconto }));
       const { error: err2 } = await supabase.from("itens_venda").insert(itensInsert);
       if (err2) throw err2;
+      const { error: delVV } = await (supabase as any).from("venda_vendedores").delete().eq("venda_id", id!);
+      if (delVV) throw delVV;
+      if (vendedoresSel.length > 0) {
+        const vvInsert = vendedoresSel.map((vid) => ({ venda_id: id!, vendedor_id: vid }));
+        const { error: err3 } = await (supabase as any).from("venda_vendedores").insert(vvInsert);
+        if (err3) throw err3;
+      }
     },
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["vendas"] }); queryClient.invalidateQueries({ queryKey: ["venda", id] }); toast.success("Venda atualizada com sucesso!"); navigate("/vendas"); },
     onError: (e) => toast.error(e.message || "Erro ao salvar venda"),
@@ -146,6 +157,28 @@ export default function EditarVenda() {
           <div className="flex items-center gap-3">
             <Label className="text-xs whitespace-nowrap font-medium">Data da Venda</Label>
             <Input type="datetime-local" className="h-9" value={dataVenda} onChange={(e) => setDataVenda(e.target.value)} />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="card-interactive">
+        <CardHeader className="pb-3"><CardTitle className="text-sm font-semibold">Vendedor(es)</CardTitle></CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap gap-2">
+            {vendedores.map((v) => {
+              const active = vendedoresSel.includes(v.id);
+              return (
+                <Button
+                  key={v.id}
+                  type="button"
+                  variant={active ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setVendedoresSel(active ? vendedoresSel.filter((x) => x !== v.id) : [...vendedoresSel, v.id])}
+                >
+                  {active && <Check className="mr-1.5 h-3.5 w-3.5" />}{v.nome}
+                </Button>
+              );
+            })}
           </div>
         </CardContent>
       </Card>

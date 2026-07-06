@@ -43,11 +43,21 @@ export default function NovaVenda() {
   const [formaPagamento, setFormaPagamento] = useState("dinheiro");
   const [prazoDias, setPrazoDias] = useState<number | null>(null);
   const [dataVenda, setDataVenda] = useState<string>(hojeISO());
+  const [vendedoresSel, setVendedoresSel] = useState<string[]>([]);
   const [novoClienteOpen, setNovoClienteOpen] = useState(false);
   const [clienteOpen, setClienteOpen] = useState(false);
   const [produtoOpen, setProdutoOpen] = useState(false);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+
+  const { data: vendedores = [] } = useQuery({
+    queryKey: ["vendedores"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).from("vendedores").select("*").order("nome");
+      if (error) throw error;
+      return data as { id: string; nome: string }[];
+    },
+  });
 
 
   const { data: clientes = [] } = useQuery({
@@ -95,6 +105,11 @@ export default function NovaVenda() {
       const itensInsert = itens.map((i) => ({ venda_id: venda.id, produto_id: i.produto_id, quantidade: i.quantidade, preco_unitario: i.preco_unitario, desconto: i.desconto }));
       const { error: err2 } = await supabase.from("itens_venda").insert(itensInsert);
       if (err2) throw err2;
+      if (vendedoresSel.length > 0) {
+        const vvInsert = vendedoresSel.map((vid) => ({ venda_id: venda.id, vendedor_id: vid }));
+        const { error: err3 } = await (supabase as any).from("venda_vendedores").insert(vvInsert);
+        if (err3) throw err3;
+      }
     },
     onSuccess: () => { toast.success("Venda salva com sucesso!"); navigate("/vendas"); },
     onError: () => toast.error("Erro ao salvar venda. Verifique os dados e tente novamente."),
@@ -194,6 +209,30 @@ export default function NovaVenda() {
               <Input type="number" min={1} className="w-24 h-9" value={prazoDias ?? ""} onChange={(e) => setPrazoDias(parseInt(e.target.value) || null)} />
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Vendedores */}
+      <Card className="card-interactive">
+        <CardHeader className="pb-3"><CardTitle className="text-sm font-semibold">Vendedor(es)</CardTitle></CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap gap-2">
+            {vendedores.map((v) => {
+              const active = vendedoresSel.includes(v.id);
+              return (
+                <Button
+                  key={v.id}
+                  type="button"
+                  variant={active ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setVendedoresSel(active ? vendedoresSel.filter((x) => x !== v.id) : [...vendedoresSel, v.id])}
+                >
+                  {active && <Check className="mr-1.5 h-3.5 w-3.5" />}{v.nome}
+                </Button>
+              );
+            })}
+          </div>
+          <p className="text-[11px] text-muted-foreground mt-2">Selecione um ou mais vendedores responsáveis por esta venda.</p>
         </CardContent>
       </Card>
 

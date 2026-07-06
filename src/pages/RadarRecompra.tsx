@@ -11,7 +11,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Radar, Search, Calendar, AlertTriangle, Star, ShoppingBag, Receipt, Phone, Trash2 } from "lucide-react";
+import { Radar, Search, Calendar, AlertTriangle, Star, ShoppingBag, Receipt, Phone, Trash2, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -47,13 +47,29 @@ function Cobrancas() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("vendas")
-        .select("id, data, total, prazo_dias, cliente_id, clientes(id, nome, telefone)")
+        .select("id, data, total, prazo_dias, cliente_id, paga, clientes(id, nome, telefone)")
         .eq("forma_pagamento", "a_prazo")
+        .eq("paga", false)
         .not("prazo_dias", "is", null)
         .order("data", { ascending: false });
       if (error) throw error;
       return data as any[];
     },
+  });
+
+  const pagarMut = useMutation({
+    mutationFn: async (vendaId: string) => {
+      const { error } = await supabase
+        .from("vendas")
+        .update({ paga: true, paga_em: new Date().toISOString() })
+        .eq("id", vendaId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["cobrancas-a-prazo"] });
+      toast.success("Cobrança marcada como paga!");
+    },
+    onError: () => toast.error("Erro ao registrar pagamento"),
   });
 
   const excluirMut = useMutation({
@@ -208,6 +224,17 @@ function Cobrancas() {
                       <Button
                         variant="ghost"
                         size="icon"
+                        className="h-8 w-8 shrink-0 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950"
+                        onClick={() => pagarMut.mutate(c.vendaId)}
+                        disabled={pagarMut.isPending}
+                        aria-label="Marcar como paga"
+                        title="Marcar como paga"
+                      >
+                        <CheckCircle2 className="h-5 w-5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
                         className="h-8 w-8 shrink-0"
                         onClick={() => setExcluir(c)}
                         aria-label="Excluir cobrança"
@@ -353,19 +380,20 @@ function classify(dias: number | null) {
 }
 
 const FILTROS = [
+  { value: "", label: "Selecione um tipo…" },
+  { value: "15-24", label: "🟢 Verde (15-24 dias)" },
+  { value: "25-34", label: "🟡 Amarelo (25-34 dias)" },
+  { value: "35+", label: "🔴 Vermelho (35+ dias)" },
   { value: "todos", label: "Todos" },
   { value: "ativos", label: "Ativos" },
   { value: "inativos", label: "Inativos" },
   { value: "0-14", label: "0-14 dias" },
-  { value: "15-24", label: "15-24 dias (verde)" },
-  { value: "25-34", label: "25-34 dias (amarelo)" },
-  { value: "35+", label: "35+ dias (vermelho)" },
 ];
 
 export default function RadarRecompra() {
   const [aba, setAba] = useState<"radar" | "cobrancas">("radar");
   const [busca, setBusca] = useState("");
-  const [filtro, setFiltro] = useState("todos");
+  const [filtro, setFiltro] = useState("");
   const [selecionado, setSelecionado] = useState<{ id: string; nome: string } | null>(null);
 
   const { data: clientes = [] } = useQuery({
@@ -398,6 +426,7 @@ export default function RadarRecompra() {
   }, [clientes]);
 
   const filtrados = useMemo(() => {
+    if (!filtro) return [];
     const q = busca.trim().toLowerCase();
     return radar
       .filter((r) => (q ? r.nome.toLowerCase().includes(q) : true))
@@ -466,52 +495,66 @@ export default function RadarRecompra() {
       <>
 
 
-      {/* Resumo */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-        <Card><CardContent className="p-4">
-          <div className="flex items-center gap-2 text-xs text-muted-foreground"><span className="h-2 w-2 rounded-full bg-emerald-500" />Ativos</div>
-          <div className="text-2xl font-bold mt-1 text-emerald-600">{counts.ativos}</div>
-        </CardContent></Card>
-        <Card><CardContent className="p-4">
-          <div className="flex items-center gap-2 text-xs text-muted-foreground"><span className="h-2 w-2 rounded-full bg-muted-foreground" />Inativos</div>
-          <div className="text-2xl font-bold mt-1">{counts.inativos}</div>
-        </CardContent></Card>
-        <Card><CardContent className="p-4">
-          <div className="flex items-center gap-2 text-xs text-muted-foreground"><span className="h-2 w-2 rounded-full bg-emerald-500" />Verde (15+ dias)</div>
-          <div className="text-2xl font-bold mt-1">{counts.verde}</div>
-        </CardContent></Card>
-        <Card><CardContent className="p-4">
-          <div className="flex items-center gap-2 text-xs text-muted-foreground"><span className="h-2 w-2 rounded-full bg-amber-500" />Amarelo (25+ dias)</div>
-          <div className="text-2xl font-bold mt-1">{counts.amarelo}</div>
-        </CardContent></Card>
-        <Card><CardContent className="p-4">
-          <div className="flex items-center gap-2 text-xs text-muted-foreground"><span className="h-2 w-2 rounded-full bg-red-500" />Vermelho (35+ dias)</div>
-          <div className="text-2xl font-bold mt-1 text-red-600">{counts.vermelho}</div>
-        </CardContent></Card>
+      {/* Resumo — clique para filtrar */}
+      <div className="grid grid-cols-3 gap-3">
+        <Card
+          onClick={() => setFiltro("15-24")}
+          className={cn("cursor-pointer transition-all hover:shadow-md", filtro === "15-24" && "ring-2 ring-emerald-500")}
+        >
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground"><span className="h-2 w-2 rounded-full bg-emerald-500" />Verde (15-24 dias)</div>
+            <div className="text-2xl font-bold mt-1 text-emerald-600">{counts.verde}</div>
+          </CardContent>
+        </Card>
+        <Card
+          onClick={() => setFiltro("25-34")}
+          className={cn("cursor-pointer transition-all hover:shadow-md", filtro === "25-34" && "ring-2 ring-amber-500")}
+        >
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground"><span className="h-2 w-2 rounded-full bg-amber-500" />Amarelo (25-34 dias)</div>
+            <div className="text-2xl font-bold mt-1 text-amber-600">{counts.amarelo}</div>
+          </CardContent>
+        </Card>
+        <Card
+          onClick={() => setFiltro("35+")}
+          className={cn("cursor-pointer transition-all hover:shadow-md", filtro === "35+" && "ring-2 ring-red-500")}
+        >
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground"><span className="h-2 w-2 rounded-full bg-red-500" />Vermelho (35+ dias)</div>
+            <div className="text-2xl font-bold mt-1 text-red-600">{counts.vermelho}</div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Filtros */}
-      <div className="flex flex-col sm:flex-row gap-2">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar cliente pelo nome..."
-            value={busca}
-            onChange={(e) => setBusca(e.target.value)}
-            className="pl-9"
-          />
+      {filtro && (
+        <div className="flex flex-col sm:flex-row gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar cliente pelo nome..."
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+          <Select value={filtro} onValueChange={setFiltro}>
+            <SelectTrigger className="w-full sm:w-64"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {FILTROS.filter((f) => f.value).map((f) => (<SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>))}
+            </SelectContent>
+          </Select>
+          <Button variant="outline" size="sm" onClick={() => setFiltro("")}>Limpar</Button>
         </div>
-        <Select value={filtro} onValueChange={setFiltro}>
-          <SelectTrigger className="w-full sm:w-64"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            {FILTROS.map((f) => (<SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>))}
-          </SelectContent>
-        </Select>
-      </div>
+      )}
 
       {/* Lista */}
       <div className="space-y-2">
-        {filtrados.length === 0 ? (
+        {!filtro ? (
+          <Card><CardContent className="p-8 text-center text-sm text-muted-foreground">
+            Selecione uma categoria acima (🟢 Verde, 🟡 Amarelo ou 🔴 Vermelho) para visualizar os clientes.
+          </CardContent></Card>
+        ) : filtrados.length === 0 ? (
           <Card><CardContent className="p-6 text-center text-sm text-muted-foreground">
             Nenhum cliente encontrado para o filtro selecionado.
           </CardContent></Card>
