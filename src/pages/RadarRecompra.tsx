@@ -409,20 +409,22 @@ export default function RadarRecompra() {
 
   const radar: ClienteRadar[] = useMemo(() => {
     const hoje = new Date();
-    return clientes.map((c: any) => {
-      const ult = c.ultima_compra ? new Date(c.ultima_compra) : null;
-      const dias = ult ? Math.floor((hoje.getTime() - ult.getTime()) / (1000 * 60 * 60 * 24)) : null;
-      return {
-        id: c.id,
-        nome: c.nome,
-        telefone: c.telefone,
-        nicho: c.nicho,
-        ultima_compra: ult,
-        ultimo_pedido_id: c.ultimo_pedido_id ?? null,
-        dias,
-        ativo: ult !== null,
-      };
-    });
+    return clientes
+      .filter((c: any) => !!c.ultima_compra) // apenas clientes que já compraram
+      .map((c: any) => {
+        const ult = new Date(c.ultima_compra);
+        const dias = Math.floor((hoje.getTime() - ult.getTime()) / (1000 * 60 * 60 * 24));
+        return {
+          id: c.id,
+          nome: c.nome,
+          telefone: c.telefone,
+          nicho: c.nicho,
+          ultima_compra: ult,
+          ultimo_pedido_id: c.ultimo_pedido_id ?? null,
+          dias,
+          ativo: true,
+        };
+      });
   }, [clientes]);
 
   const filtrados = useMemo(() => {
