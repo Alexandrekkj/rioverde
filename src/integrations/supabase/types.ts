@@ -236,6 +236,7 @@ export type Database = {
         Row: {
           categoria: string | null
           created_at: string
+          estoque: number
           id: string
           nome: string
           preco: number
@@ -244,6 +245,7 @@ export type Database = {
         Insert: {
           categoria?: string | null
           created_at?: string
+          estoque?: number
           id?: string
           nome: string
           preco?: number
@@ -252,6 +254,7 @@ export type Database = {
         Update: {
           categoria?: string | null
           created_at?: string
+          estoque?: number
           id?: string
           nome?: string
           preco?: number
