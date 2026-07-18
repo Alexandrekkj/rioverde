@@ -398,6 +398,9 @@ export default function Clientes() {
   });
 
   const filtered = clientes.filter((c) => {
+    const ativoFlag = (c as any).ativo !== false;
+    const matchStatus = showInativos ? !ativoFlag : ativoFlag;
+    if (!matchStatus) return false;
     const matchSearch =
       c.nome.toLowerCase().includes(search.toLowerCase()) ||
       (c.nicho && c.nicho.toLowerCase().includes(search.toLowerCase())) ||
@@ -408,6 +411,8 @@ export default function Clientes() {
     const matchBairro = bairroFilter === "todos" || c.bairro === bairroFilter;
     return matchSearch && matchNicho && matchCidade && matchBairro;
   });
+
+  const inativosCount = clientes.filter((c) => (c as any).ativo === false).length;
 
   function handleOpenChange(v: boolean) {
     setOpen(v);
