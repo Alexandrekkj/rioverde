@@ -473,10 +473,10 @@ export default function RadarRecompra() {
     const q = busca.trim().toLowerCase();
     return radar
       .filter((r) => (q ? r.nome.toLowerCase().includes(q) : true))
+      .filter((r) => (cidadeFilter === "todos" ? true : r.cidade === cidadeFilter))
+      .filter((r) => (bairroFilter === "todos" ? true : r.bairro === bairroFilter))
       .filter((r) => {
         if (filtro === "todos") return true;
-        if (filtro === "ativos") return r.ativo;
-        if (filtro === "inativos") return !r.ativo;
         if (r.dias === null) return false;
         if (filtro === "0-14") return r.dias < 15;
         if (filtro === "15-24") return r.dias >= 15 && r.dias < 25;
@@ -490,7 +490,7 @@ export default function RadarRecompra() {
         if (b.dias === null) return -1;
         return b.dias - a.dias;
       });
-  }, [radar, busca, filtro]);
+  }, [radar, busca, filtro, cidadeFilter, bairroFilter]);
 
   const counts = useMemo(() => {
     const c = { ativos: 0, inativos: 0, verde: 0, amarelo: 0, vermelho: 0 };
