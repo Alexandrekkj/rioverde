@@ -397,23 +397,59 @@ export default function RadarRecompra() {
   const [aba, setAba] = useState<"radar" | "cobrancas">("radar");
   const [busca, setBusca] = useState("");
   const [filtro, setFiltro] = useState("");
+  const [cidadeFilter, setCidadeFilter] = useState("todos");
+  const [bairroFilter, setBairroFilter] = useState("todos");
   const [selecionado, setSelecionado] = useState<{ id: string; nome: string } | null>(null);
+  const [desativar, setDesativar] = useState<ClienteRadar | null>(null);
+  const queryClient = useQueryClient();
 
   const { data: clientes = [] } = useQuery({
     queryKey: ["clientes-radar"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("clientes")
-        .select("id, nome, telefone, nicho, ultima_compra, ultimo_pedido_id" as any);
+        .select("id, nome, telefone, nicho, cidade, bairro, ativo, ultima_compra, ultimo_pedido_id" as any);
       if (error) throw error;
       return data as any[];
     },
   });
 
+  const { data: cidades = [] } = useQuery({
+    queryKey: ["cidades"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("cidades" as any).select("id, nome").order("nome");
+      if (error) throw error;
+      return (data ?? []) as unknown as { id: string; nome: string }[];
+    },
+  });
+
+  const { data: bairros = [] } = useQuery({
+    queryKey: ["bairros"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("bairros" as any).select("id, nome").order("nome");
+      if (error) throw error;
+      return (data ?? []) as unknown as { id: string; nome: string }[];
+    },
+  });
+
+  const desativarMut = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("clientes").update({ ativo: false } as any).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["clientes-radar"] });
+      queryClient.invalidateQueries({ queryKey: ["clientes"] });
+      toast.success("Cliente desativado. Reative em Clientes → Inativos.");
+      setDesativar(null);
+    },
+    onError: () => toast.error("Erro ao desativar cliente"),
+  });
+
   const radar: ClienteRadar[] = useMemo(() => {
     const hoje = new Date();
     return clientes
-      .filter((c: any) => !!c.ultima_compra) // apenas clientes que já compraram
+      .filter((c: any) => !!c.ultima_compra && c.ativo !== false) // apenas ativos que já compraram
       .map((c: any) => {
         const ult = new Date(c.ultima_compra);
         const dias = Math.floor((hoje.getTime() - ult.getTime()) / (1000 * 60 * 60 * 24));
@@ -422,10 +458,12 @@ export default function RadarRecompra() {
           nome: c.nome,
           telefone: c.telefone,
           nicho: c.nicho,
+          cidade: c.cidade ?? null,
+          bairro: c.bairro ?? null,
           ultima_compra: ult,
           ultimo_pedido_id: c.ultimo_pedido_id ?? null,
           dias,
-          ativo: true,
+          ativo: c.ativo !== false,
         };
       });
   }, [clientes]);
