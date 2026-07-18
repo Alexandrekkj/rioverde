@@ -657,22 +657,34 @@ export default function RadarRecompra() {
                         {c.telefone && <span className="ml-2">• {c.telefone}</span>}
                       </div>
                     </div>
-                    <div className="text-right">
-                      <div
-                        className={cn(
-                          "text-2xl font-bold leading-none",
-                          c.dias === null && "text-muted-foreground",
-                          c.dias !== null && c.dias < 15 && "text-foreground",
-                          c.dias !== null && c.dias >= 15 && c.dias < 25 && "text-emerald-600",
-                          c.dias !== null && c.dias >= 25 && c.dias < 35 && "text-amber-600",
-                          c.dias !== null && c.dias >= 35 && "text-red-600",
-                        )}
+                    <div className="flex items-start gap-2">
+                      <div className="text-right">
+                        <div
+                          className={cn(
+                            "text-2xl font-bold leading-none",
+                            c.dias === null && "text-muted-foreground",
+                            c.dias !== null && c.dias < 15 && "text-foreground",
+                            c.dias !== null && c.dias >= 15 && c.dias < 25 && "text-emerald-600",
+                            c.dias !== null && c.dias >= 25 && c.dias < 35 && "text-amber-600",
+                            c.dias !== null && c.dias >= 35 && "text-red-600",
+                          )}
+                        >
+                          {c.dias ?? "—"}
+                        </div>
+                        <div className="text-[10px] uppercase tracking-wider text-muted-foreground mt-0.5">
+                          {c.dias === null ? "inativo" : "dias"}
+                        </div>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 shrink-0"
+                        onClick={(e) => { e.stopPropagation(); setDesativar(c); }}
+                        aria-label="Desativar cliente"
+                        title="Desativar cliente"
                       >
-                        {c.dias ?? "—"}
-                      </div>
-                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground mt-0.5">
-                        {c.dias === null ? "inativo" : "dias"}
-                      </div>
+                        <UserX className="h-4 w-4 text-destructive" />
+                      </Button>
                     </div>
                   </div>
                 </CardContent>
