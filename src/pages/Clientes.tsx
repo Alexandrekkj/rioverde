@@ -309,6 +309,19 @@ export default function Clientes() {
     onError: () => toast.error("Erro ao remover cliente"),
   });
 
+  const setAtivoMut = useMutation({
+    mutationFn: async ({ id, ativo }: { id: string; ativo: boolean }) => {
+      const { error } = await supabase.from("clientes").update({ ativo } as any).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: (_d, v) => {
+      queryClient.invalidateQueries({ queryKey: ["clientes"] });
+      queryClient.invalidateQueries({ queryKey: ["clientes-radar"] });
+      toast.success(v.ativo ? "Cliente reativado!" : "Cliente desativado!");
+    },
+    onError: () => toast.error("Erro ao atualizar cliente"),
+  });
+
   const addNicho = useMutation({
     mutationFn: async (nome: string) => {
       const { error } = await supabase.from("nichos" as any).insert({ nome });
