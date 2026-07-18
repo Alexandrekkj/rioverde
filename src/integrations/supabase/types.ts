@@ -90,6 +90,7 @@ export type Database = {
       }
       clientes: {
         Row: {
+          ativo: boolean
           bairro: string | null
           cidade: string | null
           complemento: string | null
@@ -107,6 +108,7 @@ export type Database = {
           ultimo_pedido_id: string | null
         }
         Insert: {
+          ativo?: boolean
           bairro?: string | null
           cidade?: string | null
           complemento?: string | null
@@ -124,6 +126,7 @@ export type Database = {
           ultimo_pedido_id?: string | null
         }
         Update: {
+          ativo?: boolean
           bairro?: string | null
           cidade?: string | null
           complemento?: string | null
