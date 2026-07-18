@@ -11,9 +11,10 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Radar, Search, Calendar, AlertTriangle, Star, ShoppingBag, Receipt, Phone, Trash2, CheckCircle2 } from "lucide-react";
+import { Radar, Search, Calendar, AlertTriangle, Star, ShoppingBag, Receipt, Phone, Trash2, CheckCircle2, MapPin, UserX } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { SearchableFilter } from "@/components/SearchableFilter";
 
 const fmtMoney = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
