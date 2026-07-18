@@ -701,6 +701,27 @@ export default function RadarRecompra() {
           onClose={() => setSelecionado(null)}
         />
       )}
+
+      <AlertDialog open={!!desativar} onOpenChange={(o) => !o && setDesativar(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Desativar cliente?</AlertDialogTitle>
+            <AlertDialogDescription>
+              <strong>{desativar?.nome}</strong> deixará de aparecer no Radar e na lista principal de Clientes.
+              Para reativá-lo, acesse Clientes → Inativos.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => desativar && desativarMut.mutate(desativar.id)}
+            >
+              Desativar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       </>
       )}
     </div>
