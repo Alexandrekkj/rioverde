@@ -10,7 +10,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { SearchableFilter } from "@/components/SearchableFilter";
-import { Plus, Search, Phone, MapPin, Edit2, Trash2, Tag, X, Camera, Video, Image as ImageIcon, Upload } from "lucide-react";
+import { Plus, Search, Phone, MapPin, Edit2, Trash2, Tag, X, Camera, Video, Image as ImageIcon, Upload, UserCheck, Users } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 import type { Tables } from "@/integrations/supabase/types";
@@ -207,6 +207,7 @@ export default function Clientes() {
   const [nichoFilter, setNichoFilter] = useState<string>("todos");
   const [cidadeFilter, setCidadeFilter] = useState<string>("todos");
   const [bairroFilter, setBairroFilter] = useState<string>("todos");
+  const [showInativos, setShowInativos] = useState(false);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Cliente | null>(null);
   const [selectedNicho, setSelectedNicho] = useState<string>(NONE_VALUE);
@@ -308,6 +309,19 @@ export default function Clientes() {
     onError: () => toast.error("Erro ao remover cliente"),
   });
 
+  const setAtivoMut = useMutation({
+    mutationFn: async ({ id, ativo }: { id: string; ativo: boolean }) => {
+      const { error } = await supabase.from("clientes").update({ ativo } as any).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: (_d, v) => {
+      queryClient.invalidateQueries({ queryKey: ["clientes"] });
+      queryClient.invalidateQueries({ queryKey: ["clientes-radar"] });
+      toast.success(v.ativo ? "Cliente reativado!" : "Cliente desativado!");
+    },
+    onError: () => toast.error("Erro ao atualizar cliente"),
+  });
+
   const addNicho = useMutation({
     mutationFn: async (nome: string) => {
       const { error } = await supabase.from("nichos" as any).insert({ nome });
@@ -384,6 +398,9 @@ export default function Clientes() {
   });
 
   const filtered = clientes.filter((c) => {
+    const ativoFlag = (c as any).ativo !== false;
+    const matchStatus = showInativos ? !ativoFlag : ativoFlag;
+    if (!matchStatus) return false;
     const matchSearch =
       c.nome.toLowerCase().includes(search.toLowerCase()) ||
       (c.nicho && c.nicho.toLowerCase().includes(search.toLowerCase())) ||
@@ -394,6 +411,8 @@ export default function Clientes() {
     const matchBairro = bairroFilter === "todos" || c.bairro === bairroFilter;
     return matchSearch && matchNicho && matchCidade && matchBairro;
   });
+
+  const inativosCount = clientes.filter((c) => (c as any).ativo === false).length;
 
   function handleOpenChange(v: boolean) {
     setOpen(v);
@@ -450,6 +469,14 @@ export default function Clientes() {
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <h1 className="heading-gradient text-2xl md:text-3xl">Clientes</h1>
         <div className="flex gap-2 flex-wrap">
+          <Button
+            size="sm"
+            variant={showInativos ? "default" : "outline"}
+            onClick={() => setShowInativos((v) => !v)}
+          >
+            <Users className="mr-1.5 h-4 w-4" />
+            {showInativos ? "Ver ativos" : `Inativos${inativosCount ? ` (${inativosCount})` : ""}`}
+          </Button>
           <Dialog open={bairrosOpen} onOpenChange={setBairrosOpen}>
             <DialogTrigger asChild>
               <Button size="sm" variant="outline"><MapPin className="mr-1.5 h-4 w-4" />Bairros</Button>
@@ -671,9 +698,20 @@ export default function Clientes() {
                   </div>
                 </button>
                 <div className="flex gap-1 shrink-0">
-                  <Button variant="ghost" size="icon" onClick={() => openEdit(c)}>
-                    <Edit2 className="h-4 w-4" />
-                  </Button>
+                  {(c as any).ativo === false ? (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setAtivoMut.mutate({ id: c.id, ativo: true })}
+                      title="Reativar cliente"
+                    >
+                      <UserCheck className="h-4 w-4 text-emerald-600" />
+                    </Button>
+                  ) : (
+                    <Button variant="ghost" size="icon" onClick={() => openEdit(c)}>
+                      <Edit2 className="h-4 w-4" />
+                    </Button>
+                  )}
                   <Button variant="ghost" size="icon" onClick={() => { if (confirm(`Remover ${c.nome}?`)) deleteMut.mutate(c.id); }}>
                     <Trash2 className="h-4 w-4 text-destructive" />
                   </Button>

@@ -11,9 +11,10 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Radar, Search, Calendar, AlertTriangle, Star, ShoppingBag, Receipt, Phone, Trash2, CheckCircle2 } from "lucide-react";
+import { Radar, Search, Calendar, AlertTriangle, Star, ShoppingBag, Receipt, Phone, Trash2, CheckCircle2, MapPin, UserX } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { SearchableFilter } from "@/components/SearchableFilter";
 
 const fmtMoney = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
@@ -365,6 +366,8 @@ type ClienteRadar = {
   nome: string;
   telefone: string | null;
   nicho: string | null;
+  cidade: string | null;
+  bairro: string | null;
   ultima_compra: Date | null;
   ultimo_pedido_id: string | null;
   dias: number | null;
@@ -394,23 +397,59 @@ export default function RadarRecompra() {
   const [aba, setAba] = useState<"radar" | "cobrancas">("radar");
   const [busca, setBusca] = useState("");
   const [filtro, setFiltro] = useState("");
+  const [cidadeFilter, setCidadeFilter] = useState("todos");
+  const [bairroFilter, setBairroFilter] = useState("todos");
   const [selecionado, setSelecionado] = useState<{ id: string; nome: string } | null>(null);
+  const [desativar, setDesativar] = useState<ClienteRadar | null>(null);
+  const queryClient = useQueryClient();
 
   const { data: clientes = [] } = useQuery({
     queryKey: ["clientes-radar"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("clientes")
-        .select("id, nome, telefone, nicho, ultima_compra, ultimo_pedido_id" as any);
+        .select("id, nome, telefone, nicho, cidade, bairro, ativo, ultima_compra, ultimo_pedido_id" as any);
       if (error) throw error;
       return data as any[];
     },
   });
 
+  const { data: cidades = [] } = useQuery({
+    queryKey: ["cidades"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("cidades" as any).select("id, nome").order("nome");
+      if (error) throw error;
+      return (data ?? []) as unknown as { id: string; nome: string }[];
+    },
+  });
+
+  const { data: bairros = [] } = useQuery({
+    queryKey: ["bairros"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("bairros" as any).select("id, nome").order("nome");
+      if (error) throw error;
+      return (data ?? []) as unknown as { id: string; nome: string }[];
+    },
+  });
+
+  const desativarMut = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("clientes").update({ ativo: false } as any).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["clientes-radar"] });
+      queryClient.invalidateQueries({ queryKey: ["clientes"] });
+      toast.success("Cliente desativado. Reative em Clientes → Inativos.");
+      setDesativar(null);
+    },
+    onError: () => toast.error("Erro ao desativar cliente"),
+  });
+
   const radar: ClienteRadar[] = useMemo(() => {
     const hoje = new Date();
     return clientes
-      .filter((c: any) => !!c.ultima_compra) // apenas clientes que já compraram
+      .filter((c: any) => !!c.ultima_compra && c.ativo !== false) // apenas ativos que já compraram
       .map((c: any) => {
         const ult = new Date(c.ultima_compra);
         const dias = Math.floor((hoje.getTime() - ult.getTime()) / (1000 * 60 * 60 * 24));
@@ -419,10 +458,12 @@ export default function RadarRecompra() {
           nome: c.nome,
           telefone: c.telefone,
           nicho: c.nicho,
+          cidade: c.cidade ?? null,
+          bairro: c.bairro ?? null,
           ultima_compra: ult,
           ultimo_pedido_id: c.ultimo_pedido_id ?? null,
           dias,
-          ativo: true,
+          ativo: c.ativo !== false,
         };
       });
   }, [clientes]);
@@ -432,10 +473,10 @@ export default function RadarRecompra() {
     const q = busca.trim().toLowerCase();
     return radar
       .filter((r) => (q ? r.nome.toLowerCase().includes(q) : true))
+      .filter((r) => (cidadeFilter === "todos" ? true : r.cidade === cidadeFilter))
+      .filter((r) => (bairroFilter === "todos" ? true : r.bairro === bairroFilter))
       .filter((r) => {
         if (filtro === "todos") return true;
-        if (filtro === "ativos") return r.ativo;
-        if (filtro === "inativos") return !r.ativo;
         if (r.dias === null) return false;
         if (filtro === "0-14") return r.dias < 15;
         if (filtro === "15-24") return r.dias >= 15 && r.dias < 25;
@@ -449,7 +490,7 @@ export default function RadarRecompra() {
         if (b.dias === null) return -1;
         return b.dias - a.dias;
       });
-  }, [radar, busca, filtro]);
+  }, [radar, busca, filtro, cidadeFilter, bairroFilter]);
 
   const counts = useMemo(() => {
     const c = { ativos: 0, inativos: 0, verde: 0, amarelo: 0, vermelho: 0 };
@@ -530,8 +571,8 @@ export default function RadarRecompra() {
 
       {/* Filtros */}
       {filtro && (
-        <div className="flex flex-col sm:flex-row gap-2">
-          <div className="relative flex-1">
+        <div className="flex flex-col sm:flex-row gap-2 flex-wrap">
+          <div className="relative flex-1 min-w-[180px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Buscar cliente pelo nome..."
@@ -540,13 +581,31 @@ export default function RadarRecompra() {
               className="pl-9"
             />
           </div>
+          <SearchableFilter
+            value={cidadeFilter}
+            onChange={setCidadeFilter}
+            options={cidades.map((c) => ({ value: c.nome, label: c.nome }))}
+            allLabel="Todas as cidades"
+            placeholder="Cidade"
+            searchPlaceholder="Pesquisar cidade..."
+            className="sm:w-[180px]"
+          />
+          <SearchableFilter
+            value={bairroFilter}
+            onChange={setBairroFilter}
+            options={bairros.map((b) => ({ value: b.nome, label: b.nome }))}
+            allLabel="Todos os bairros"
+            placeholder="Bairro"
+            searchPlaceholder="Pesquisar bairro..."
+            className="sm:w-[180px]"
+          />
           <Select value={filtro} onValueChange={setFiltro}>
-            <SelectTrigger className="w-full sm:w-64"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="w-full sm:w-56"><SelectValue /></SelectTrigger>
             <SelectContent>
               {FILTROS.filter((f) => f.value).map((f) => (<SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>))}
             </SelectContent>
           </Select>
-          <Button variant="outline" size="sm" onClick={() => setFiltro("")}>Limpar</Button>
+          <Button variant="outline" size="sm" onClick={() => { setFiltro(""); setCidadeFilter("todos"); setBairroFilter("todos"); }}>Limpar</Button>
         </div>
       )}
 
@@ -598,22 +657,34 @@ export default function RadarRecompra() {
                         {c.telefone && <span className="ml-2">• {c.telefone}</span>}
                       </div>
                     </div>
-                    <div className="text-right">
-                      <div
-                        className={cn(
-                          "text-2xl font-bold leading-none",
-                          c.dias === null && "text-muted-foreground",
-                          c.dias !== null && c.dias < 15 && "text-foreground",
-                          c.dias !== null && c.dias >= 15 && c.dias < 25 && "text-emerald-600",
-                          c.dias !== null && c.dias >= 25 && c.dias < 35 && "text-amber-600",
-                          c.dias !== null && c.dias >= 35 && "text-red-600",
-                        )}
+                    <div className="flex items-start gap-2">
+                      <div className="text-right">
+                        <div
+                          className={cn(
+                            "text-2xl font-bold leading-none",
+                            c.dias === null && "text-muted-foreground",
+                            c.dias !== null && c.dias < 15 && "text-foreground",
+                            c.dias !== null && c.dias >= 15 && c.dias < 25 && "text-emerald-600",
+                            c.dias !== null && c.dias >= 25 && c.dias < 35 && "text-amber-600",
+                            c.dias !== null && c.dias >= 35 && "text-red-600",
+                          )}
+                        >
+                          {c.dias ?? "—"}
+                        </div>
+                        <div className="text-[10px] uppercase tracking-wider text-muted-foreground mt-0.5">
+                          {c.dias === null ? "inativo" : "dias"}
+                        </div>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 shrink-0"
+                        onClick={(e) => { e.stopPropagation(); setDesativar(c); }}
+                        aria-label="Desativar cliente"
+                        title="Desativar cliente"
                       >
-                        {c.dias ?? "—"}
-                      </div>
-                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground mt-0.5">
-                        {c.dias === null ? "inativo" : "dias"}
-                      </div>
+                        <UserX className="h-4 w-4 text-destructive" />
+                      </Button>
                     </div>
                   </div>
                 </CardContent>
@@ -630,6 +701,27 @@ export default function RadarRecompra() {
           onClose={() => setSelecionado(null)}
         />
       )}
+
+      <AlertDialog open={!!desativar} onOpenChange={(o) => !o && setDesativar(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Desativar cliente?</AlertDialogTitle>
+            <AlertDialogDescription>
+              <strong>{desativar?.nome}</strong> deixará de aparecer no Radar e na lista principal de Clientes.
+              Para reativá-lo, acesse Clientes → Inativos.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => desativar && desativarMut.mutate(desativar.id)}
+            >
+              Desativar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       </>
       )}
     </div>
