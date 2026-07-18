@@ -10,7 +10,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { SearchableFilter } from "@/components/SearchableFilter";
-import { Plus, Search, Phone, MapPin, Edit2, Trash2, Tag, X, Camera, Video, Image as ImageIcon, Upload } from "lucide-react";
+import { Plus, Search, Phone, MapPin, Edit2, Trash2, Tag, X, Camera, Video, Image as ImageIcon, Upload, UserCheck, Users } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 import type { Tables } from "@/integrations/supabase/types";
