@@ -698,9 +698,20 @@ export default function Clientes() {
                   </div>
                 </button>
                 <div className="flex gap-1 shrink-0">
-                  <Button variant="ghost" size="icon" onClick={() => openEdit(c)}>
-                    <Edit2 className="h-4 w-4" />
-                  </Button>
+                  {(c as any).ativo === false ? (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setAtivoMut.mutate({ id: c.id, ativo: true })}
+                      title="Reativar cliente"
+                    >
+                      <UserCheck className="h-4 w-4 text-emerald-600" />
+                    </Button>
+                  ) : (
+                    <Button variant="ghost" size="icon" onClick={() => openEdit(c)}>
+                      <Edit2 className="h-4 w-4" />
+                    </Button>
+                  )}
                   <Button variant="ghost" size="icon" onClick={() => { if (confirm(`Remover ${c.nome}?`)) deleteMut.mutate(c.id); }}>
                     <Trash2 className="h-4 w-4 text-destructive" />
                   </Button>
