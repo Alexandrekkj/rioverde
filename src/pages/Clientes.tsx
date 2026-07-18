@@ -207,6 +207,7 @@ export default function Clientes() {
   const [nichoFilter, setNichoFilter] = useState<string>("todos");
   const [cidadeFilter, setCidadeFilter] = useState<string>("todos");
   const [bairroFilter, setBairroFilter] = useState<string>("todos");
+  const [showInativos, setShowInativos] = useState(false);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Cliente | null>(null);
   const [selectedNicho, setSelectedNicho] = useState<string>(NONE_VALUE);
