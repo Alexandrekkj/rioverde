@@ -469,6 +469,14 @@ export default function Clientes() {
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <h1 className="heading-gradient text-2xl md:text-3xl">Clientes</h1>
         <div className="flex gap-2 flex-wrap">
+          <Button
+            size="sm"
+            variant={showInativos ? "default" : "outline"}
+            onClick={() => setShowInativos((v) => !v)}
+          >
+            <Users className="mr-1.5 h-4 w-4" />
+            {showInativos ? "Ver ativos" : `Inativos${inativosCount ? ` (${inativosCount})` : ""}`}
+          </Button>
           <Dialog open={bairrosOpen} onOpenChange={setBairrosOpen}>
             <DialogTrigger asChild>
               <Button size="sm" variant="outline"><MapPin className="mr-1.5 h-4 w-4" />Bairros</Button>
