@@ -366,6 +366,8 @@ type ClienteRadar = {
   nome: string;
   telefone: string | null;
   nicho: string | null;
+  cidade: string | null;
+  bairro: string | null;
   ultima_compra: Date | null;
   ultimo_pedido_id: string | null;
   dias: number | null;
