@@ -571,8 +571,8 @@ export default function RadarRecompra() {
 
       {/* Filtros */}
       {filtro && (
-        <div className="flex flex-col sm:flex-row gap-2">
-          <div className="relative flex-1">
+        <div className="flex flex-col sm:flex-row gap-2 flex-wrap">
+          <div className="relative flex-1 min-w-[180px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Buscar cliente pelo nome..."
@@ -581,13 +581,31 @@ export default function RadarRecompra() {
               className="pl-9"
             />
           </div>
+          <SearchableFilter
+            value={cidadeFilter}
+            onChange={setCidadeFilter}
+            options={cidades.map((c) => ({ value: c.nome, label: c.nome }))}
+            allLabel="Todas as cidades"
+            placeholder="Cidade"
+            searchPlaceholder="Pesquisar cidade..."
+            className="sm:w-[180px]"
+          />
+          <SearchableFilter
+            value={bairroFilter}
+            onChange={setBairroFilter}
+            options={bairros.map((b) => ({ value: b.nome, label: b.nome }))}
+            allLabel="Todos os bairros"
+            placeholder="Bairro"
+            searchPlaceholder="Pesquisar bairro..."
+            className="sm:w-[180px]"
+          />
           <Select value={filtro} onValueChange={setFiltro}>
-            <SelectTrigger className="w-full sm:w-64"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="w-full sm:w-56"><SelectValue /></SelectTrigger>
             <SelectContent>
               {FILTROS.filter((f) => f.value).map((f) => (<SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>))}
             </SelectContent>
           </Select>
-          <Button variant="outline" size="sm" onClick={() => setFiltro("")}>Limpar</Button>
+          <Button variant="outline" size="sm" onClick={() => { setFiltro(""); setCidadeFilter("todos"); setBairroFilter("todos"); }}>Limpar</Button>
         </div>
       )}
 
