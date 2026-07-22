@@ -469,6 +469,7 @@ export default function Clientes() {
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <h1 className="heading-gradient text-2xl md:text-3xl">Clientes</h1>
         <div className="flex gap-2 flex-wrap">
+          <BackupButton />
           <Button
             size="sm"
             variant={showInativos ? "default" : "outline"}
