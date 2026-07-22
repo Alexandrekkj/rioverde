@@ -3,7 +3,7 @@ import { ShoppingCart, TrendingUp, TrendingDown } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useState, useMemo } from "react";
-import { format, startOfDay, endOfDay, eachDayOfInterval, startOfMonth } from "date-fns";
+import { format, startOfDay, endOfDay, eachDayOfInterval, startOfMonth, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -24,8 +24,8 @@ export default function Index() {
       const { data, error } = await supabase
         .from("vendas")
         .select("total, data, cliente_id")
-        .gte("data", startOfDay(new Date(startDate)).toISOString())
-        .lte("data", endOfDay(new Date(endDate)).toISOString());
+        .gte("data", startOfDay(parseISO(startDate)).toISOString())
+        .lte("data", endOfDay(parseISO(endDate)).toISOString());
       if (error) throw error;
       return data ?? [];
     },
@@ -37,8 +37,8 @@ export default function Index() {
       const { data, error } = await supabase
         .from("despesas")
         .select("valor, data")
-        .gte("data", startOfDay(new Date(startDate)).toISOString())
-        .lte("data", endOfDay(new Date(endDate)).toISOString());
+        .gte("data", startOfDay(parseISO(startDate)).toISOString())
+        .lte("data", endOfDay(parseISO(endDate)).toISOString());
       if (error) throw error;
       return data ?? [];
     },
@@ -52,8 +52,8 @@ export default function Index() {
   }, [vendas, despesas]);
 
   const chartData = useMemo(() => {
-    const start = new Date(startDate);
-    const end = new Date(endDate);
+    const start = parseISO(startDate);
+    const end = parseISO(endDate);
     const days = eachDayOfInterval({ start, end });
     const map = new Map<string, number>();
     days.forEach((d) => map.set(format(d, "yyyy-MM-dd"), 0));
@@ -62,7 +62,7 @@ export default function Index() {
       map.set(key, (map.get(key) ?? 0) + v.total);
     });
     return Array.from(map.entries()).map(([date, total]) => ({
-      date: format(new Date(date), "dd/MM", { locale: ptBR }),
+      date: format(parseISO(date), "dd/MM", { locale: ptBR }),
       total,
     }));
   }, [vendas, startDate, endDate]);
