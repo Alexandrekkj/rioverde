@@ -97,12 +97,16 @@ export default function Vendas() {
             <div className="flex flex-wrap gap-3">
               <div className="space-y-1.5 flex-1 min-w-[140px]">
                 <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Cliente</Label>
-                <Select value={filtroCliente} onValueChange={setFiltroCliente}>
-                  <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Todos" /></SelectTrigger>
-                  <SelectContent>
-                    {clientes.map((c) => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <SearchableFilter
+                  value={filtroCliente}
+                  onChange={setFiltroCliente}
+                  options={clientes.map((c) => ({ value: c.id, label: c.nome }))}
+                  allLabel="Todos"
+                  allValue=""
+                  placeholder="Todos"
+                  searchPlaceholder="Buscar cliente..."
+                  className="w-full h-9 text-sm"
+                />
               </div>
               <div className="space-y-1.5 min-w-[120px]">
                 <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Pagamento</Label>
