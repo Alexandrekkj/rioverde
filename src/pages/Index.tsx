@@ -3,7 +3,7 @@ import { ShoppingCart, TrendingUp, TrendingDown } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useState, useMemo } from "react";
-import { format, startOfDay, endOfDay, eachDayOfInterval, startOfMonth } from "date-fns";
+import { format, startOfDay, endOfDay, eachDayOfInterval, startOfMonth, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
