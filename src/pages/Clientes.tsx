@@ -14,6 +14,7 @@ import { Plus, Search, Phone, MapPin, Edit2, Trash2, Tag, X, Camera, Video, Imag
 import { toast } from "sonner";
 import { z } from "zod";
 import type { Tables } from "@/integrations/supabase/types";
+import { BackupButton } from "@/components/BackupButton";
 
 type Cliente = Tables<"clientes">;
 type Nicho = { id: string; nome: string };
