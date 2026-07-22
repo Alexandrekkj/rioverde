@@ -14,6 +14,7 @@ import { Plus, Search, Phone, MapPin, Edit2, Trash2, Tag, X, Camera, Video, Imag
 import { toast } from "sonner";
 import { z } from "zod";
 import type { Tables } from "@/integrations/supabase/types";
+import { BackupButton } from "@/components/BackupButton";
 
 type Cliente = Tables<"clientes">;
 type Nicho = { id: string; nome: string };
@@ -469,6 +470,7 @@ export default function Clientes() {
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <h1 className="heading-gradient text-2xl md:text-3xl">Clientes</h1>
         <div className="flex gap-2 flex-wrap">
+          <BackupButton />
           <Button
             size="sm"
             variant={showInativos ? "default" : "outline"}
